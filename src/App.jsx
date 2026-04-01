@@ -1,0 +1,134 @@
+import { useState, useEffect } from 'react';
+import { useStore } from './hooks/useStore';
+import Dashboard from './components/Dashboard';
+import NewJobScreen from './components/NewJobScreen';
+import JobEditor from './components/JobEditor';
+import { CustomerDatabase } from './components/CustomerDB';
+import SettingsPage from './components/SettingsPage';
+import { handleQBCallback, setQBTokens } from './utils/quickbooks';
+
+export default function App() {
+  const store = useStore();
+  const [view, setView] = useState('dashboard');
+  const [activeJobId, setActiveJobId] = useState(null);
+  const [qbCallbackStatus, setQbCallbackStatus] = useState(null); // null | 'processing' | 'success' | 'error'
+  const [qbCallbackMsg, setQbCallbackMsg] = useState('');
+
+  // Handle QB OAuth callback on page load
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('code') && params.get('realmId')) {
+      setQbCallbackStatus('processing');
+      const settings = store.settings;
+      const redirectUri = settings.qbRedirectUri?.trim() ||
+        (window.location.origin + window.location.pathname).replace(/\/?$/, '/');
+      handleQBCallback(
+        settings.qbClientId,
+        settings.qbClientSecret,
+        redirectUri
+      ).then(success => {
+        if (success) {
+          setQbCallbackStatus('success');
+          setQbCallbackMsg('QuickBooks connected successfully!');
+          setTimeout(() => { setQbCallbackStatus(null); setView('settings'); }, 2000);
+        }
+      }).catch(e => {
+        setQbCallbackStatus('error');
+        setQbCallbackMsg(e.message);
+        setTimeout(() => setQbCallbackStatus(null), 4000);
+      });
+    }
+  }, []);
+
+  const handleNewJobType = (jobType) => {
+    const id = store.createJob({ jobType, status: 'draft' });
+    setActiveJobId(id);
+    setView('job');
+  };
+
+  const handleSelectJob = (id) => {
+    setActiveJobId(id);
+    setView('job');
+  };
+
+  const handleDuplicate = (id) => {
+    const newId = store.duplicateJob(id);
+    if (newId) { setActiveJobId(newId); setView('job'); }
+  };
+
+  const job = store.getJob(activeJobId);
+
+  return (
+    <>
+      {/* QB OAuth callback overlay */}
+      {qbCallbackStatus && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
+          <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-2xl p-8 text-center max-w-sm w-full mx-4">
+            {qbCallbackStatus === 'processing' && (
+              <>
+                <div className="text-4xl mb-4 animate-spin">⟳</div>
+                <p className="condensed text-xl font-black text-white">CONNECTING TO QUICKBOOKS</p>
+                <p className="text-[#555] text-sm mt-2">Exchanging authorization tokens...</p>
+              </>
+            )}
+            {qbCallbackStatus === 'success' && (
+              <>
+                <div className="text-4xl mb-4">✅</div>
+                <p className="condensed text-xl font-black text-green-400">CONNECTED!</p>
+                <p className="text-[#555] text-sm mt-2">{qbCallbackMsg}</p>
+              </>
+            )}
+            {qbCallbackStatus === 'error' && (
+              <>
+                <div className="text-4xl mb-4">❌</div>
+                <p className="condensed text-xl font-black text-red-400">CONNECTION FAILED</p>
+                <p className="text-red-400/70 text-sm mt-2">{qbCallbackMsg}</p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {view === 'new' && <NewJobScreen onSelect={handleNewJobType} onBack={() => setView('dashboard')} />}
+      {view === 'job' && job && (
+        <JobEditor
+          job={job}
+          customers={store.customers}
+          settings={store.settings}
+          onUpdate={store.updateJob}
+          onBack={() => setView('dashboard')}
+          onCreateCustomer={store.createCustomer}
+        />
+      )}
+      {view === 'customers' && (
+        <CustomerDatabase
+          customers={store.customers}
+          onCreateCustomer={store.createCustomer}
+          onUpdateCustomer={store.updateCustomer}
+          onDeleteCustomer={store.deleteCustomer}
+          onBack={() => setView('dashboard')}
+        />
+      )}
+      {view === 'settings' && (
+        <SettingsPage
+          settings={store.settings}
+          onSave={store.setSettings}
+          onBack={() => setView('dashboard')}
+        />
+      )}
+      {(view === 'dashboard' || (view === 'job' && !job)) && (
+        <Dashboard
+          jobs={store.jobs}
+          customers={store.customers}
+          settings={store.settings}
+          onNewJob={() => setView('new')}
+          onSelectJob={handleSelectJob}
+          onDeleteJob={store.deleteJob}
+          onDuplicateJob={handleDuplicate}
+          onCustomers={() => setView('customers')}
+          onSettings={() => setView('settings')}
+        />
+      )}
+    </>
+  );
+}

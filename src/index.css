@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --sbk-black: #000000;
+  --sbk-yellow: #f59e0b;
+  --sbk-gray: #A7A5A6;
+  --sbk-surface: #111111;
+  --sbk-surface2: #1a1a1a;
+  --sbk-surface3: #222222;
+  --sbk-border: #2a2a2a;
+  --sbk-border2: #333333;
+  --sbk-text: #f0f0f0;
+  --sbk-text2: #a0a0a0;
+  --sbk-text3: #666666;
+}
+
+* { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+
+body {
+  background: var(--sbk-black);
+  color: var(--sbk-text);
+  font-family: 'Barlow', sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+h1, h2, h3, .condensed {
+  font-family: 'Barlow Condensed', sans-serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--sbk-surface); }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+/* Number inputs */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+/* Yellow glow utility */
+.glow-yellow { box-shadow: 0 0 20px rgba(245,158,11,0.2); }
+.glow-yellow-sm { box-shadow: 0 0 8px rgba(245,158,11,0.25); }
+
+/* Signature pad */
+canvas { touch-action: none; }

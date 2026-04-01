@@ -1,0 +1,369 @@
+// QuickBooks Online Integration
+// OAuth2 PKCE flow — all calls proxied through Netlify functions to avoid CORS
+
+const QB_BASE_PROD = 'https://quickbooks.api.intuit.com/v3/company';
+const QB_BASE_SANDBOX = 'https://sandbox-quickbooks.api.intuit.com/v3/company';
+const QB_AUTH = 'https://appcenter.intuit.com/connect/oauth2';
+const QB_TOKEN_PROXY = '/.netlify/functions/qb-token';
+const QB_API_PROXY = '/.netlify/functions/qb-api';
+
+function getQBBase(environment) {
+  return environment === 'sandbox' ? QB_BASE_SANDBOX : QB_BASE_PROD;
+}
+
+// ─── Token storage ────────────────────────────────────────────────────────────
+
+export function getQBTokens() {
+  try { return JSON.parse(localStorage.getItem('sbk_qb_tokens') || 'null'); }
+  catch { return null; }
+}
+
+export function setQBTokens(tokens) {
+  localStorage.setItem('sbk_qb_tokens', JSON.stringify({
+    ...tokens,
+    storedAt: Date.now(),
+  }));
+}
+
+export function clearQBTokens() {
+  localStorage.removeItem('sbk_qb_tokens');
+  localStorage.removeItem('sbk_qb_pkce');
+}
+
+export function isQBConnected() {
+  const tokens = getQBTokens();
+  if (!tokens?.access_token) return false;
+  // Access tokens last 1 hour; refresh tokens last 100 days
+  const age = (Date.now() - (tokens.storedAt || 0)) / 1000;
+  return age < (tokens.expires_in || 3600) - 60;
+}
+
+export function hasRefreshToken() {
+  const tokens = getQBTokens();
+  if (!tokens?.refresh_token) return false;
+  const age = (Date.now() - (tokens.storedAt || 0)) / 1000;
+  return age < (tokens.x_refresh_token_expires_in || 8640000) - 3600;
+}
+
+export function getRealmId() {
+  return getQBTokens()?.realmId || null;
+}
+
+// ─── PKCE helpers ─────────────────────────────────────────────────────────────
+
+function base64urlEncode(buffer) {
+  return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+async function generatePKCE() {
+  const verifier = base64urlEncode(crypto.getRandomValues(new Uint8Array(32)));
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  const challenge = base64urlEncode(hash);
+  return { verifier, challenge };
+}
+
+// ─── OAuth2 flow ──────────────────────────────────────────────────────────────
+
+export async function startQBAuth(clientId, redirectUri) {
+  const { verifier, challenge } = await generatePKCE();
+  const state = base64urlEncode(crypto.getRandomValues(new Uint8Array(16)));
+
+  localStorage.setItem('sbk_qb_pkce', JSON.stringify({ verifier, state }));
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: 'code',
+    scope: 'com.intuit.quickbooks.accounting',
+    redirect_uri: redirectUri,
+    state,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+  });
+
+  window.location.href = `${QB_AUTH}?${params}`;
+}
+
+export async function handleQBCallback(clientId, clientSecret, redirectUri) {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  const state = params.get('state');
+  const realmId = params.get('realmId');
+  const error = params.get('error');
+
+  if (error) throw new Error(`QuickBooks auth error: ${error}`);
+  if (!code || !realmId) return false;
+
+  const stored = JSON.parse(localStorage.getItem('sbk_qb_pkce') || '{}');
+  if (stored.state !== state) throw new Error('State mismatch — please try connecting again');
+
+  // Exchange code for tokens via Netlify proxy (avoids CORS)
+  const res = await fetch(QB_TOKEN_PROXY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: stored.verifier,
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Token exchange failed: ${err.error || res.status}. Check your Client ID and Secret.`);
+  }
+
+  const tokens = await res.json();
+  setQBTokens({ ...tokens, realmId });
+  localStorage.removeItem('sbk_qb_pkce');
+
+  // Clean URL
+  window.history.replaceState({}, '', window.location.pathname);
+  return true;
+}
+
+export async function refreshQBToken(clientId, clientSecret) {
+  const tokens = getQBTokens();
+  if (!tokens?.refresh_token) throw new Error('No refresh token');
+
+  const res = await fetch(QB_TOKEN_PROXY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'refresh_token',
+      refresh_token: tokens.refresh_token,
+      client_id: clientId,
+      client_secret: clientSecret,
+    }),
+  });
+
+  if (!res.ok) throw new Error('Token refresh failed — please reconnect QuickBooks');
+  const newTokens = await res.json();
+  setQBTokens({ ...newTokens, realmId: tokens.realmId });
+  return newTokens;
+}
+
+async function ensureToken(settings) {
+  if (isQBConnected()) return getQBTokens().access_token;
+  if (hasRefreshToken()) {
+    const tokens = await refreshQBToken(settings.qbClientId, settings.qbClientSecret);
+    return tokens.access_token;
+  }
+  throw new Error('QuickBooks session expired. Please reconnect in Settings.');
+}
+
+// ─── QBO API calls ────────────────────────────────────────────────────────────
+
+// ─── QBO API calls — routed through Netlify proxy to avoid CORS ──────────────
+
+async function qbGet(path, settings) {
+  const token = await ensureToken(settings);
+  const realmId = getRealmId();
+  const base = getQBBase(settings.qbEnvironment);
+  const url = `${base}/${realmId}/${path}?minorversion=65`;
+
+  const res = await fetch(QB_API_PROXY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, method: 'GET', token }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(`QBO API error: ${res.status}`);
+  return data;
+}
+
+async function qbPost(path, body, settings) {
+  const token = await ensureToken(settings);
+  const realmId = getRealmId();
+  const base = getQBBase(settings.qbEnvironment);
+  const url = `${base}/${realmId}/${path}?minorversion=65`;
+
+  const res = await fetch(QB_API_PROXY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, method: 'POST', token, body }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const msg = data?.Fault?.Error?.[0]?.Message || `QBO error ${res.status}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+// ─── Find or create customer ──────────────────────────────────────────────────
+
+async function findOrCreateCustomer(job, settings) {
+  const name = job.customerName?.trim();
+  if (!name) throw new Error('Job must have a customer name to push to QuickBooks');
+
+  const token = await ensureToken(settings);
+  const realmId = getRealmId();
+  const base = getQBBase(settings.qbEnvironment);
+  const query = encodeURIComponent(`SELECT * FROM Customer WHERE DisplayName = '${name.replace(/'/g, "\\'")}'`);
+  const url = `${base}/${realmId}/query?query=${query}&minorversion=65`;
+
+  const res = await fetch(QB_API_PROXY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, method: 'GET', token }),
+  });
+  const data = await res.json();
+  const existing = data?.QueryResponse?.Customer?.[0];
+  if (existing) return existing.Id;
+
+  const payload = {
+    DisplayName: name,
+    ...(job.customerEmail ? { PrimaryEmailAddr: { Address: job.customerEmail } } : {}),
+    ...(job.customerPhone ? { PrimaryPhone: { FreeFormNumber: job.customerPhone } } : {}),
+    ...(job.jobAddress ? { BillAddr: { Line1: job.jobAddress } } : {}),
+  };
+
+  const created = await qbPost('customer', payload, settings);
+  return created.Customer.Id;
+}
+
+// ─── Find or create service items ─────────────────────────────────────────────
+
+async function findOrCreateItem(name, unitPrice, settings) {
+  const safeName = name.trim().substring(0, 100);
+  const token = await ensureToken(settings);
+  const realmId = getRealmId();
+  const base = getQBBase(settings.qbEnvironment);
+  const query = encodeURIComponent(`SELECT * FROM Item WHERE Name = '${safeName.replace(/'/g, "\\'")}'`);
+  const url = `${base}/${realmId}/query?query=${query}&minorversion=65`;
+
+  const res = await fetch(QB_API_PROXY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, method: 'GET', token }),
+  });
+  const data = await res.json();
+  const existing = data?.QueryResponse?.Item?.[0];
+  if (existing) return existing.Id;
+
+  const payload = {
+    Name: safeName,
+    Type: 'Service',
+    UnitPrice: unitPrice || 0,
+    IncomeAccountRef: { name: 'Services', value: '1' },
+  };
+
+  try {
+    const created = await qbPost('item', payload, settings);
+    return created.Item.Id;
+  } catch {
+    // Fallback — search for a generic Electrical Services item
+    const fbUrl = `${base}/${realmId}/query?query=${encodeURIComponent("SELECT * FROM Item WHERE Name = 'Electrical Services'")}&minorversion=65`;
+    const fbRes = await fetch(QB_API_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: fbUrl, method: 'GET', token }),
+    });
+    const fb = await fbRes.json();
+    return fb?.QueryResponse?.Item?.[0]?.Id || null;
+  }
+}
+
+// ─── Push estimate to QBO ─────────────────────────────────────────────────────
+
+export async function pushEstimateToQB(job, totals, settings) {
+  const customerId = await findOrCreateCustomer(job, settings);
+  const laborRate = settings.laborRate || 95;
+
+  // Build line items
+  const lines = [];
+  for (const li of (job.lineItems || [])) {
+    if (!li.qty || li.qty === 0) continue;
+
+    const unitPrice = li.allInPrice != null
+      ? li.allInPrice
+      : (li.material || 0) + (li.laborHrs || 0) * laborRate * (job.laborMultiplier || 1);
+
+    const totalPrice = unitPrice * li.qty;
+    const itemId = await findOrCreateItem(li.name, unitPrice, settings);
+
+    const line = {
+      DetailType: 'SalesItemLineDetail',
+      Amount: parseFloat(totalPrice.toFixed(2)),
+      Description: li.name + (li.notes ? ` — ${li.notes}` : ''),
+      SalesItemLineDetail: {
+        Qty: li.qty,
+        UnitPrice: parseFloat(unitPrice.toFixed(2)),
+        ...(itemId ? { ItemRef: { value: itemId } } : {}),
+      },
+    };
+    lines.push(line);
+  }
+
+  if (lines.length === 0) throw new Error('No line items to push — add items first');
+
+  const scopeTitle = job.scopeTitle || job.jobType || 'Electrical Work';
+  const estimate = {
+    Line: lines,
+    CustomerRef: { value: customerId },
+    TxnDate: new Date().toISOString().split('T')[0],
+    ExpirationDate: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+    CustomerMemo: { value: scopeTitle + (job.notes ? `\n${job.notes}` : '') },
+    BillEmail: job.customerEmail ? { Address: job.customerEmail } : undefined,
+  };
+
+  const result = await qbPost('estimate', estimate, settings);
+  const estimateId = result.Estimate?.Id;
+  const estimateNum = result.Estimate?.DocNumber;
+
+  return { estimateId, estimateNum };
+}
+
+// ─── CSV Export ───────────────────────────────────────────────────────────────
+
+export function exportEstimateCSV(job, totals, settings) {
+  const laborRate = settings?.laborRate || 95;
+  const markup = settings?.defaultMarkup || 20;
+  const scopeTitle = job.scopeTitle || job.jobType || 'Electrical Work';
+  const date = new Date().toLocaleDateString();
+
+  const rows = [
+    ['SBK Estimator — Estimate Export'],
+    ['Customer', job.customerName || ''],
+    ['Address', job.jobAddress || ''],
+    ['Scope', scopeTitle],
+    ['Date', date],
+    ['Job #', job.id?.slice(-6).toUpperCase() || ''],
+    [],
+    ['Item', 'Qty', 'Unit', 'Unit Price', 'Total'],
+  ];
+
+  for (const li of (job.lineItems || [])) {
+    if (!li.qty || li.qty === 0) continue;
+    const unitPrice = li.allInPrice != null
+      ? li.allInPrice
+      : (li.material || 0) + (li.laborHrs || 0) * laborRate * (job.laborMultiplier || 1);
+    rows.push([
+      li.name,
+      li.qty,
+      li.unit || 'each',
+      unitPrice.toFixed(2),
+      (unitPrice * li.qty).toFixed(2),
+    ]);
+  }
+
+  rows.push([]);
+  rows.push(['', '', '', 'Material', totals.totalMaterial.toFixed(2)]);
+  rows.push(['', '', '', `Labor (${totals.totalLaborHrs.toFixed(1)}h @ $${laborRate}/hr)`, totals.totalLaborCost.toFixed(2)]);
+  rows.push(['', '', '', 'Subtotal', totals.subtotal.toFixed(2)]);
+  rows.push(['', '', '', `Markup (${markup}%)`, totals.markupAmt.toFixed(2)]);
+  rows.push(['', '', '', 'TOTAL', totals.grandTotal.toFixed(2)]);
+
+  const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `SBK-Estimate-${(job.customerName || 'Job').replace(/\s+/g, '-')}-${date.replace(/\//g, '-')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
