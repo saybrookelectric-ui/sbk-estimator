@@ -1,6 +1,26 @@
 // SBK Estimator — Job Types & Assembly Defaults
 // Each job type has assemblies (pre-built line items) the user picks from
 
+// Conduit pricing per 10ft by size (PVC Sch40 unless noted)
+export const CONDUIT_SIZES = [
+  { size: '1/2"',  label: '1/2"',  matPer10ft: 6,  laborHrsPer10ft: 0.30 },
+  { size: '3/4"',  label: '3/4"',  matPer10ft: 9,  laborHrsPer10ft: 0.35 },
+  { size: '1"',    label: '1"',    matPer10ft: 13, laborHrsPer10ft: 0.40 },
+  { size: '1-1/4"',label: '1-1/4"',matPer10ft: 18, laborHrsPer10ft: 0.50 },
+  { size: '1-1/2"',label: '1-1/2"',matPer10ft: 22, laborHrsPer10ft: 0.55 },
+  { size: '2"',    label: '2"',    matPer10ft: 30, laborHrsPer10ft: 0.65 },
+  { size: '2-1/2"',label: '2-1/2"',matPer10ft: 48, laborHrsPer10ft: 0.80 },
+  { size: '3"',    label: '3"',    matPer10ft: 65, laborHrsPer10ft: 1.00 },
+  { size: '3-1/2"',label: '3-1/2"',matPer10ft: 82, laborHrsPer10ft: 1.15 },
+  { size: '4"',    label: '4"',    matPer10ft: 98, laborHrsPer10ft: 1.30 },
+];
+
+// IDs of assemblies that are conduit runs (triggers size dropdown)
+export const CONDUIT_ASSEMBLY_IDS = new Set([
+  'conduit_outdoor', 'conduit_underground', 'conduit_run',
+  'conduit_indoor', 'conduit_exposed', 'conduit_surface',
+]);
+
 export const JOB_TYPES = [
   { id: 'rewire', label: 'Whole House Rewire', icon: '🏠', color: '#f59e0b' },
   { id: 'service', label: 'Service Upgrade / Panel', icon: '⚡', color: '#f59e0b' },
@@ -39,7 +59,7 @@ export const JOB_ASSEMBLIES = {
     { id: 'nema_630', name: 'NEMA 6-30 Receptacle', material: 22, laborHrs: 0.5, unit: 'each' },
     { id: 'evse_hardwire', name: 'EVSE Hardwire Connection (customer supplied charger)', material: 15, laborHrs: 1.5, unit: 'each' },
     { id: 'ev_load_mgmt', name: 'Load Management Device', material: 185, laborHrs: 1, unit: 'each', notes: 'For panels near capacity' },
-    { id: 'conduit_outdoor', name: 'Conduit Run (outdoor/garage, per 10ft)', material: 18, laborHrs: 0.5, unit: '10ft' },
+    { id: 'conduit_outdoor', name: 'Conduit Run (outdoor/garage, per 10ft)', material: 18, laborHrs: 0.5, unit: '10ft', isConduit: true },
     { id: 'panel_breaker_dp', name: 'Double Pole Breaker', material: 18, laborHrs: 0.25, unit: 'each' },
     { id: 'permit_ev', name: 'Permit Fee', material: 150, laborHrs: 1.5, unit: 'job' },
   ],
@@ -87,9 +107,14 @@ export const JOB_ASSEMBLIES = {
     { id: 'hottub_disconnect', name: 'Disconnect Box (within sight, 5-10ft)', material: 65, laborHrs: 1.5, unit: 'each', notes: 'NEC 680.12 — lockable disconnect required' },
     { id: 'hottub_bonding', name: 'Equipotential Bonding (pool/tub)', material: 45, laborHrs: 2, unit: 'each', notes: 'NEC 680.26 — bonding grid required' },
     { id: 'pool_pump_circuit', name: 'Pool Pump Circuit (240V/20A)', material: 95, laborHrs: 3.5, unit: 'each' },
+    { id: 'pool_heater_circuit_50a', name: 'Pool Heater Circuit (240V/50A)', material: 165, laborHrs: 4.5, unit: 'each', notes: 'Electric pool heater — 6 AWG, 2-pole 50A breaker, dedicated circuit per NEC 680' },
+    { id: 'pool_heater_circuit_60a', name: 'Pool Heater Circuit (240V/60A)', material: 195, laborHrs: 5, unit: 'each', notes: 'Larger electric heater — 4 AWG, 2-pole 60A breaker' },
+    { id: 'pool_heater_disconnect', name: 'Pool Heater Disconnect (within sight)', material: 75, laborHrs: 1.5, unit: 'each', notes: 'NEC 680.12 — lockable disconnect within sight of equipment' },
+    { id: 'pool_heater_connect', name: 'Pool Heater Connection (customer supplied)', material: 25, laborHrs: 1.5, unit: 'each', notes: 'Final connection to heater terminals only' },
     { id: 'pool_lighting', name: 'Pool/Spa Lighting Circuit (GFCI)', material: 75, laborHrs: 2.5, unit: 'each' },
     { id: 'gfci_breaker_dp', name: 'Double Pole GFCI Breaker', material: 85, laborHrs: 0.25, unit: 'each' },
-    { id: 'conduit_underground', name: 'Underground Conduit Run (per 10ft)', material: 22, laborHrs: 0.75, unit: '10ft', notes: 'PVC schedule 40, does not include trenching' },
+    { id: 'conduit_underground', name: 'Underground Conduit Run (per 10ft)', material: 22, laborHrs: 0.75, unit: '10ft', notes: 'PVC schedule 40, does not include trenching', isConduit: true },
+    { id: 'conduit_exposed', name: 'Exposed/Surface Conduit Run (per 10ft)', material: 18, laborHrs: 0.60, unit: '10ft', isConduit: true },
     { id: 'trenching', name: 'Trenching (subcontractor, per 10ft)', material: 15, laborHrs: 0, unit: '10ft' },
     { id: 'permit_hottub', name: 'Permit Fee', material: 250, laborHrs: 2, unit: 'job' },
   ],

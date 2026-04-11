@@ -1,11 +1,47 @@
 import { useState } from 'react';
-import { JOB_ASSEMBLIES } from '../data/jobTypes';
-import { SectionLabel, YellowBtn, GhostBtn } from './UI';
+import { JOB_ASSEMBLIES, CONDUIT_SIZES } from '../data/jobTypes';
+import { SectionLabel } from './UI';
+
+const CONDUIT_ASSEMBLY_IDS = new Set([
+  'conduit_outdoor', 'conduit_underground', 'conduit_run',
+  'conduit_indoor', 'conduit_exposed', 'conduit_surface',
+]);
+
+function ConduitSizeSelect({ value, onChange }) {
+  return (
+    <div className="w-28 flex-shrink-0">
+      <label className="block text-xs text-[#444] mb-1">Conduit Size</label>
+      <select
+        value={value || '3/4"'}
+        onChange={e => onChange(e.target.value)}
+        className="w-full bg-[#1a1a1a] border border-[#f59e0b]/40 rounded px-2 py-1.5 text-sm text-[#f59e0b] focus:outline-none focus:border-[#f59e0b]"
+      >
+        {CONDUIT_SIZES.map(s => (
+          <option key={s.size} value={s.size}>{s.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 function LineItemRow({ item, idx, onChange, onRemove, showAllIn }) {
+  const isConduit = item.isConduit || CONDUIT_ASSEMBLY_IDS.has(item.assemblyId);
+
+  const handleConduitSize = (size) => {
+    const cs = CONDUIT_SIZES.find(s => s.size === size);
+    if (cs) {
+      onChange(idx, {
+        ...item,
+        conduitSize: size,
+        material: cs.matPer10ft,
+        laborHrs: cs.laborHrsPer10ft,
+      });
+    }
+  };
+
   return (
     <div className="bg-[#111] border border-[#1a1a1a] rounded-lg p-3">
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-2 flex-wrap">
         {/* Qty */}
         <div className="w-14 flex-shrink-0">
           <label className="block text-xs text-[#444] mb-1">Qty</label>
@@ -18,7 +54,7 @@ function LineItemRow({ item, idx, onChange, onRemove, showAllIn }) {
         </div>
 
         {/* Name */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0" style={{minWidth: '120px'}}>
           <label className="block text-xs text-[#444] mb-1">Description</label>
           <input
             type="text"
@@ -28,16 +64,23 @@ function LineItemRow({ item, idx, onChange, onRemove, showAllIn }) {
           />
         </div>
 
-        {/* Unit */}
-        <div className="w-20 flex-shrink-0">
-          <label className="block text-xs text-[#444] mb-1">Unit</label>
-          <input
-            type="text"
-            value={item.unit || 'each'}
-            onChange={e => onChange(idx, { ...item, unit: e.target.value })}
-            className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-[#f59e0b]"
+        {/* Conduit size dropdown OR unit */}
+        {isConduit ? (
+          <ConduitSizeSelect
+            value={item.conduitSize}
+            onChange={handleConduitSize}
           />
-        </div>
+        ) : (
+          <div className="w-20 flex-shrink-0">
+            <label className="block text-xs text-[#444] mb-1">Unit</label>
+            <input
+              type="text"
+              value={item.unit || 'each'}
+              onChange={e => onChange(idx, { ...item, unit: e.target.value })}
+              className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-[#f59e0b]"
+            />
+          </div>
+        )}
 
         {/* Mat cost */}
         <div className="w-20 flex-shrink-0">
@@ -77,6 +120,9 @@ function LineItemRow({ item, idx, onChange, onRemove, showAllIn }) {
 
         <button onClick={() => onRemove(idx)} className="text-[#333] hover:text-red-400 text-sm mt-5 flex-shrink-0 transition-colors">✕</button>
       </div>
+      {isConduit && (
+        <p className="text-xs text-[#444] mt-1.5 ml-1">Mat & labor auto-calculated for selected size per 10ft</p>
+      )}
     </div>
   );
 }
@@ -90,6 +136,9 @@ export default function AssemblyBuilder({ job, onChange, settings }) {
   const addAssembly = (assembly) => {
     const already = lineItems.find(li => li.assemblyId === assembly.id);
     if (already) return;
+    const isConduit = assembly.isConduit || CONDUIT_ASSEMBLY_IDS.has(assembly.id);
+    const defaultSize = isConduit ? '3/4"' : null;
+    const conduitData = isConduit ? CONDUIT_SIZES.find(s => s.size === '3/4"') : null;
     onChange({
       ...job,
       lineItems: [...lineItems, {
@@ -97,9 +146,11 @@ export default function AssemblyBuilder({ job, onChange, settings }) {
         name: assembly.name,
         qty: 1,
         unit: assembly.unit || 'each',
-        material: assembly.material,
-        laborHrs: assembly.laborHrs,
+        material: conduitData ? conduitData.matPer10ft : assembly.material,
+        laborHrs: conduitData ? conduitData.laborHrsPer10ft : assembly.laborHrs,
         notes: assembly.notes || '',
+        isConduit: isConduit || undefined,
+        conduitSize: defaultSize,
       }]
     });
   };
