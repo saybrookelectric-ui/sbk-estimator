@@ -127,8 +127,6 @@ export default function App() {
           onDuplicateJob={handleDuplicate}
           onCustomers={() => setView('customers')}
           onSettings={() => setView('settings')}
-          syncStatus={store.syncStatus}
-          syncError={store.syncError}
         />
       )}
     </>

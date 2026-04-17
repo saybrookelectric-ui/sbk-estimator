@@ -3,7 +3,7 @@ import { JOB_TYPES } from '../data/jobTypes';
 import { calcJobTotals, formatCurrency } from '../utils/pricing';
 import { StatusBadge, GhostBtn, YellowBtn } from './UI';
 
-export default function Dashboard({ jobs, customers, settings, onNewJob, onSelectJob, onDeleteJob, onDuplicateJob, onCustomers, onSettings, syncStatus, syncError }) {
+export default function Dashboard({ jobs, customers, settings, onNewJob, onSelectJob, onDeleteJob, onDuplicateJob, onCustomers, onSettings }) {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -34,11 +34,6 @@ export default function Dashboard({ jobs, customers, settings, onNewJob, onSelec
                 <span className="text-white ml-2">ESTIMATOR</span>
               </h1>
               <p className="text-[#A7A5A6] text-xs mt-0.5">Saybrook Electric, LLC. · NEC 2023</p>
-              <div className="flex items-center gap-1.5 mt-1">
-                {syncStatus === 'syncing' && <><span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse inline-block"/><span className="text-xs text-yellow-400">Syncing...</span></>}
-                {syncStatus === 'synced'  && <><span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"/><span className="text-xs text-green-400">Cloud synced</span></>}
-                {syncStatus === 'error'   && <><span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block"/><span className="text-xs text-red-400" title={syncError}>Sync error</span></>}
-              </div>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={onCustomers} className="text-[#A7A5A6] hover:text-white text-xs px-3 py-1.5 rounded-lg border border-[#222] hover:border-[#444] transition-colors">
