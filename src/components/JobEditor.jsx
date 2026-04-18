@@ -593,16 +593,32 @@ export default function JobEditor({ job, customers, settings, onUpdate, onBack, 
                     className="hidden"
                     onChange={async (e) => {
                       const files = Array.from(e.target.files || []);
-                      const newPhotos = await Promise.all(files.map(file => new Promise((resolve) => {
+                      const compressImage = (file) => new Promise((resolve) => {
                         const reader = new FileReader();
-                        reader.onload = (ev) => resolve({
-                          dataUrl: ev.target.result,
-                          caption: '',
-                          addedAt: new Date().toISOString(),
-                          fileName: file.name,
-                        });
+                        reader.onload = (ev) => {
+                          const img = new Image();
+                          img.onload = () => {
+                            const MAX = 1200;
+                            let { width, height } = img;
+                            if (width > MAX || height > MAX) {
+                              if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+                              else { width = Math.round(width * MAX / height); height = MAX; }
+                            }
+                            const canvas = document.createElement('canvas');
+                            canvas.width = width; canvas.height = height;
+                            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                            resolve({
+                              dataUrl: canvas.toDataURL('image/jpeg', 0.75),
+                              caption: '',
+                              addedAt: new Date().toISOString(),
+                              fileName: file.name,
+                            });
+                          };
+                          img.src = ev.target.result;
+                        };
                         reader.readAsDataURL(file);
-                      })));
+                      });
+                      const newPhotos = await Promise.all(files.map(compressImage));
                       upd({ photos: [...(job.photos || []), ...newPhotos] });
                       e.target.value = '';
                     }}
