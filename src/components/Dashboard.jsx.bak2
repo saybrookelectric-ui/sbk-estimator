@@ -1,41 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { JOB_TYPES } from '../data/jobTypes';
 import { calcJobTotals, formatCurrency } from '../utils/pricing';
 import { StatusBadge, GhostBtn, YellowBtn } from './UI';
-import { exportBackup, importBackup } from '../utils/backup';
 
-export default function Dashboard({ jobs, customers, settings, onNewJob, onSelectJob, onDeleteJob, onDuplicateJob, onCustomers, onSettings, syncStatus, syncError, onRestoreBackup }) {
+export default function Dashboard({ jobs, customers, settings, onNewJob, onSelectJob, onDeleteJob, onDuplicateJob, onCustomers, onSettings, syncStatus, syncError }) {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [backupMsg, setBackupMsg] = useState('');
-  const restoreRef = useRef(null);
-
-  const handleExport = () => {
-    const result = exportBackup(jobs, customers, settings);
-    setBackupMsg(`✓ Exported ${result.jobCount} jobs`);
-    setTimeout(() => setBackupMsg(''), 3000);
-  };
-
-  const handleImport = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const data = await importBackup(file);
-      const confirm = window.confirm(
-        `Restore backup from ${data.exportedAt ? new Date(data.exportedAt).toLocaleDateString() : 'unknown date'}?\n\n${data.jobs.length} jobs, ${data.customers.length} customers.\n\nThis will MERGE with your existing data (no data will be deleted).`
-      );
-      if (confirm) {
-        onRestoreBackup(data);
-        setBackupMsg(`✓ Restored ${data.jobs.length} jobs`);
-        setTimeout(() => setBackupMsg(''), 3000);
-      }
-    } catch (err) {
-      setBackupMsg(`✗ ${err.message}`);
-      setTimeout(() => setBackupMsg(''), 4000);
-    }
-    e.target.value = '';
-  };
 
   const filtered = jobs.filter(j => {
     const q = search.toLowerCase();
@@ -67,7 +38,6 @@ export default function Dashboard({ jobs, customers, settings, onNewJob, onSelec
                 {syncStatus === 'syncing' && <><span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse inline-block"/><span className="text-xs text-yellow-400">Syncing...</span></>}
                 {syncStatus === 'synced'  && <><span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"/><span className="text-xs text-green-400">Cloud synced</span></>}
                 {syncStatus === 'error'   && <><span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block"/><span className="text-xs text-red-400" title={syncError}>Sync error</span></>}
-                {backupMsg && <span className={`text-xs ml-2 ${backupMsg.startsWith('✓') ? 'text-green-400' : 'text-red-400'}`}>{backupMsg}</span>}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -77,22 +47,6 @@ export default function Dashboard({ jobs, customers, settings, onNewJob, onSelec
               <button onClick={onSettings} className="text-[#A7A5A6] hover:text-white text-xs px-3 py-1.5 rounded-lg border border-[#222] hover:border-[#444] transition-colors">
                 ⚙ Settings
               </button>
-              {/* Backup / Restore */}
-              <div className="relative">
-                <button
-                  onClick={handleExport}
-                  className="text-[#A7A5A6] hover:text-white text-xs px-3 py-1.5 rounded-lg border border-[#222] hover:border-[#444] transition-colors"
-                  title="Export backup JSON"
-                >
-                  ⬇ Backup
-                </button>
-              </div>
-              <div className="relative">
-                <label className="text-[#A7A5A6] hover:text-white text-xs px-3 py-1.5 rounded-lg border border-[#222] hover:border-[#444] transition-colors cursor-pointer" title="Restore from backup">
-                  ⬆ Restore
-                  <input ref={restoreRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
-                </label>
-              </div>
               <YellowBtn onClick={onNewJob} size="sm">+ New Job</YellowBtn>
             </div>
           </div>

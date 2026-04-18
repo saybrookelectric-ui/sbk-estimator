@@ -199,34 +199,11 @@ export function useStore() {
     lsSet('sbk_custom_prices', next);
   };
 
-  // ── BACKUP RESTORE ────────────────────────────────────────────────────────
-  const restoreBackup = ({ jobs: backupJobs, customers: backupCustomers, settings: backupSettings }) => {
-    // Merge — existing IDs win, new ones from backup get added
-    setJobs(prev => {
-      const existingIds = new Set(prev.map(j => j.id));
-      const toAdd = backupJobs.filter(j => !existingIds.has(j.id));
-      const merged = [...prev, ...toAdd];
-      toAdd.forEach(j => upsertJob(j));
-      return merged;
-    });
-    setCustomers(prev => {
-      const existingIds = new Set(prev.map(c => c.id));
-      const toAdd = backupCustomers.filter(c => !existingIds.has(c.id));
-      const merged = [...prev, ...toAdd];
-      toAdd.forEach(c => upsertCustomer(c));
-      return merged;
-    });
-    if (backupSettings) {
-      setSettings(backupSettings);
-    }
-  };
-
   return {
     jobs, customers, settings, customPrices,
     syncStatus, syncError,
     setSettings, setCustomPrices,
     createJob, updateJob, deleteJob, duplicateJob, getJob,
     createCustomer, updateCustomer, deleteCustomer, getCustomer,
-    restoreBackup,
   };
 }

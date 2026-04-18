@@ -31,7 +31,6 @@ export const JOB_TYPES = [
   { id: 'hot_tub', label: 'Hot Tub / Pool', icon: '🌊', color: '#f59e0b' },
   { id: 'outdoor', label: 'Outdoor / Landscape', icon: '🌿', color: '#f59e0b' },
   { id: 'smoke_co', label: 'Smoke & CO Detector Install', icon: '🚨', color: '#f59e0b' },
-  { id: 'wall_fishing', label: 'Wall Fishing / Rough-In', icon: '🐟', color: '#f59e0b' },
   { id: 'custom', label: 'Custom / Misc Job', icon: '📋', color: '#A7A5A6' },
 ];
 
@@ -147,20 +146,6 @@ export const JOB_ASSEMBLIES = {
     { id: 'custom_switch', name: 'Switch', material: 6, laborHrs: 0.25, unit: 'each' },
     { id: 'custom_labor', name: 'Labor Only (per hour)', material: 0, laborHrs: 1, unit: 'hour' },
     { id: 'custom_permit', name: 'Permit Fee', material: 150, laborHrs: 1.5, unit: 'job' },
-  ],
-  wall_fishing: [
-    { id: 'fish_wall_single', name: 'Wall Fish — Single Drop (drywall)', material: 8, laborHrs: 1.0, unit: 'each', notes: 'Fish one cable through finished drywall, one floor/ceiling penetration' },
-    { id: 'fish_wall_plaster', name: 'Wall Fish — Single Drop (plaster)', material: 8, laborHrs: 1.75, unit: 'each', notes: 'Plaster walls require more care and time' },
-    { id: 'fish_wall_long', name: 'Wall Fish — Long Run (10ft+)', material: 12, laborHrs: 2.0, unit: 'each', notes: 'Extended horizontal or vertical run through finished wall' },
-    { id: 'fish_floor_drill', name: 'Floor/Ceiling Drill-Through', material: 5, laborHrs: 0.5, unit: 'each', notes: 'Per penetration — top or bottom plate' },
-    { id: 'fish_fireblock', name: 'Fire Block Penetration', material: 10, laborHrs: 0.75, unit: 'each', notes: 'Core drill through fire blocking, includes fire caulk' },
-    { id: 'fish_attic_drop', name: 'Attic Drop (open attic access)', material: 5, laborHrs: 0.5, unit: 'each', notes: 'Drop from open attic — fastest method' },
-    { id: 'fish_basement_up', name: 'Basement Feed-Up (open basement)', material: 5, laborHrs: 0.5, unit: 'each', notes: 'Feed up from open basement' },
-    { id: 'fish_crawl', name: 'Crawl Space Feed-Up', material: 5, laborHrs: 0.75, unit: 'each' },
-    { id: 'fish_brick_core', name: 'Brick/Block Core Drill', material: 15, laborHrs: 1.5, unit: 'each', notes: 'Core drill through masonry — includes bit wear' },
-    { id: 'fish_patch_drywall', name: 'Drywall Patch (small, per hole)', material: 18, laborHrs: 0.5, unit: 'each', notes: 'Access hole patch — paint not included' },
-    { id: 'fish_patch_plaster', name: 'Plaster Patch (per hole)', material: 25, laborHrs: 1.0, unit: 'each', notes: 'Plaster patch — finish coat not included' },
-    { id: 'fish_string_pull', name: 'String & Pull (conduit/raceway)', material: 12, laborHrs: 0.5, unit: 'each', notes: 'Pull wire through existing conduit or raceway' },
   ],
 };
 
