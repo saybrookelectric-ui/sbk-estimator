@@ -288,6 +288,7 @@ export default function JobEditor({ job, customers, settings, onUpdate, onBack, 
   const [showSignature, setShowSignature] = useState(false);
   const [showAddScope, setShowAddScope] = useState(false);
   const [activeScopeIdx, setActiveScopeIdx] = useState(0);
+  const [lightboxPhoto, setLightboxPhoto] = useState(null); // { dataUrl, caption }
 
   const upd = (updates) => {
     const next = { ...job, ...updates };
@@ -358,6 +359,22 @@ export default function JobEditor({ job, customers, settings, onUpdate, onBack, 
 
   return (
     <div className="min-h-screen bg-black text-white">
+      {lightboxPhoto && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col" onClick={() => setLightboxPhoto(null)}>
+          <div className="flex items-center justify-between px-4 py-3 bg-black/80" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setLightboxPhoto(null)} className="flex items-center gap-2 text-[#f59e0b] text-sm font-medium">
+              ← Back to Quote
+            </button>
+            {lightboxPhoto.caption && <span className="text-xs text-[#888] max-w-[60%] truncate">{lightboxPhoto.caption}</span>}
+          </div>
+          <div className="flex-1 flex items-center justify-center p-4" onClick={() => setLightboxPhoto(null)}>
+            <img src={lightboxPhoto.dataUrl} alt={lightboxPhoto.caption || 'Job photo'} className="max-w-full max-h-full object-contain rounded-lg" onClick={e => e.stopPropagation()} />
+          </div>
+          <div className="px-4 py-3 text-center bg-black/80">
+            <span className="text-xs text-[#555]">Tap outside photo or use button to close</span>
+          </div>
+        </div>
+      )}
       {showSignature && (
         <SignaturePad
           job={{ ...job, grandTotal: totals.grandTotal }}
@@ -421,13 +438,32 @@ export default function JobEditor({ job, customers, settings, onUpdate, onBack, 
                     <div className="flex-1">
                       <Input label="Customer Name" value={job.customerName} onChange={v => upd({ customerName: v })} placeholder="John & Jane Smith" />
                     </div>
-                    <div className="pt-6">
+                    <div className="pt-6 flex flex-col gap-1">
                       <button
                         onClick={() => setShowCustomerPicker(true)}
                         className="text-xs text-[#f59e0b] border border-[#f59e0b]/30 px-3 py-2.5 rounded-lg hover:bg-[#f59e0b]/10 whitespace-nowrap transition-colors"
                       >
                         From DB
                       </button>
+                      {job.customerName && !job.customerId && (
+                        <button
+                          onClick={() => {
+                            const newCust = {
+                              id: `cust_${Date.now()}`,
+                              name: job.customerName,
+                              address: job.jobAddress || '',
+                              phone: job.customerPhone || '',
+                              email: job.customerEmail || '',
+                              isNew: true,
+                            };
+                            onCreateCustomer(newCust);
+                            upd({ customerId: newCust.id });
+                          }}
+                          className="text-xs text-green-400 border border-green-400/30 px-3 py-2.5 rounded-lg hover:bg-green-400/10 whitespace-nowrap transition-colors"
+                        >
+                          Save to DB
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -525,10 +561,7 @@ export default function JobEditor({ job, customers, settings, onUpdate, onBack, 
                         />
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex flex-col items-center justify-center gap-1">
                           <button
-                            onClick={() => {
-                              const win = window.open('', '_blank');
-                              win.document.write(`<img src="${photo.dataUrl}" style="max-width:100%;max-height:100vh;">`);
-                            }}
+                            onClick={() => setLightboxPhoto({ dataUrl: photo.dataUrl, caption: photo.caption })}
                             className="text-xs text-white bg-white/20 px-2 py-1 rounded"
                           >
                             View
