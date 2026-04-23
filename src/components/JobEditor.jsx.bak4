@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { JOB_TYPES, WALL_TYPES, ACCESS_TYPES } from '../data/jobTypes';
 import { calcJobTotals, formatCurrency, formatHours } from '../utils/pricing';
 import { generateQuotePDF } from '../utils/pdfExport';
-import { generateInvoicePDF } from '../utils/invoiceExport';
-import { pushEstimateToQB, pushInvoiceToQB, exportEstimateCSV, isQBConnected, hasRefreshToken } from '../utils/quickbooks';
+import { pushEstimateToQB, exportEstimateCSV, isQBConnected, hasRefreshToken } from '../utils/quickbooks';
 import { CustomerPicker } from './CustomerDB';
 import AssemblyBuilder from './AssemblyBuilder';
 import SignaturePad from './SignaturePad';
@@ -282,204 +281,8 @@ function SingleScopeTotals({ totals, settings }) {
   );
 }
 
-// ─── Invoice Panel ────────────────────────────────────────────────────────────
-function InvoicePanel({ job, totals, settings, onUpdate, claimInvoiceNumber }) {
-  const [qbStatus, setQbStatus] = useState('idle');
-  const [qbMsg, setQbMsg] = useState('');
-  const connected = isQBConnected() || hasRefreshToken();
-  const invoice = job.invoice || null;
-  const termsDays = settings.invoiceTermsDays || 30;
-
-  const handleConvert = () => {
-    const number = claimInvoiceNumber();
-    const issuedAt = new Date().toISOString();
-    const dueDate = new Date(Date.now() + termsDays * 86400000).toISOString();
-    onUpdate({
-      invoice: { number, issuedAt, dueDate, deposit: 0, paid: false, paidAt: null },
-      status: 'complete',
-    });
-  };
-
-  const handlePushToQB = async () => {
-    setQbStatus('pushing');
-    setQbMsg('');
-    try {
-      const { invoiceId, invoiceNum } = await pushInvoiceToQB(job, totals, settings, invoice);
-      setQbStatus('success');
-      setQbMsg(`QB Invoice #${invoiceNum || '—'} created`);
-      onUpdate({ qbInvoiceId: invoiceId, qbInvoiceNum: invoiceNum, qbInvoiceSyncedAt: new Date().toISOString() });
-    } catch (e) {
-      setQbStatus('error');
-      setQbMsg(e.message);
-    }
-  };
-
-  const handleMarkPaid = () => {
-    onUpdate({ invoice: { ...invoice, paid: true, paidAt: new Date().toISOString() } });
-  };
-
-  if (!invoice) {
-    return (
-      <div className="bg-[#0d0d0d] border-2 border-dashed border-[#f59e0b]/30 rounded-xl p-5 text-center space-y-3">
-        <p className="text-2xl">🧾</p>
-        <p className="text-sm font-semibold text-white">Ready to Invoice?</p>
-        <p className="text-xs text-[#555]">Job is marked complete. Convert this estimate into an invoice to bill the customer.</p>
-        <button
-          onClick={handleConvert}
-          className="w-full bg-[#f59e0b] text-black font-black py-3 rounded-lg text-sm transition-opacity hover:opacity-90"
-        >
-          Convert to Invoice
-        </button>
-      </div>
-    );
-  }
-
-  const dueDate = new Date(invoice.dueDate);
-  const isOverdue = !invoice.paid && dueDate < new Date();
-
-  return (
-    <div className="bg-[#0d0d0d] border border-[#dc2626]/40 rounded-xl overflow-hidden">
-      {/* Invoice header */}
-      <div className="bg-[#dc2626]/10 border-b border-[#dc2626]/20 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-base">🧾</span>
-          <span className="text-sm font-bold text-white">Invoice {invoice.number}</span>
-          {invoice.paid && <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-semibold">PAID</span>}
-          {isOverdue && !invoice.paid && <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-semibold">OVERDUE</span>}
-        </div>
-        <span className={`text-lg font-black ${invoice.paid ? 'text-green-400' : isOverdue ? 'text-red-400' : 'text-[#f59e0b]'}`}>
-          {formatCurrency(totals.grandTotal - (invoice.deposit || 0))}
-        </span>
-      </div>
-
-      <div className="p-4 space-y-4">
-        {/* Dates */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs text-[#555] mb-1">Issue Date</label>
-            <p className="text-sm text-white">{new Date(invoice.issuedAt).toLocaleDateString()}</p>
-          </div>
-          <div>
-            <label className="block text-xs text-[#555] mb-1">Due Date</label>
-            <input
-              type="date"
-              value={invoice.dueDate ? invoice.dueDate.split('T')[0] : ''}
-              onChange={e => onUpdate({ invoice: { ...invoice, dueDate: new Date(e.target.value).toISOString() } })}
-              className="bg-[#1a1a1a] border border-[#2a2a2a] rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-[#f59e0b] w-full"
-            />
-          </div>
-        </div>
-
-        {/* Deposit */}
-        <div>
-          <label className="block text-xs text-[#555] mb-1">Deposit Received ($)</label>
-          <input
-            type="number"
-            min="0"
-            value={invoice.deposit || ''}
-            placeholder="0"
-            onChange={e => onUpdate({ invoice: { ...invoice, deposit: parseFloat(e.target.value) || 0 } })}
-            className="bg-[#1a1a1a] border border-[#2a2a2a] rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-[#f59e0b] w-full"
-          />
-          {invoice.deposit > 0 && (
-            <p className="text-xs text-green-400 mt-1">Balance due: {formatCurrency(totals.grandTotal - invoice.deposit)}</p>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="space-y-2">
-          {/* Print invoice PDF */}
-          <button
-            onClick={() => generateInvoicePDF(job, settings, invoice)}
-            className="w-full bg-[#dc2626] hover:bg-[#b91c1c] text-white font-bold py-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
-          >
-            📄 Print / Email Invoice PDF
-          </button>
-
-          {/* Email pre-fill */}
-          <button
-            onClick={() => {
-              const subject = encodeURIComponent(`Invoice ${invoice.number} — ${job.customerName || ''}`);
-              const balanceDue = formatCurrency(totals.grandTotal - (invoice.deposit || 0));
-              const due = new Date(invoice.dueDate).toLocaleDateString();
-              const body = encodeURIComponent(
-`Hi ${job.customerName || 'there'},
-
-Please find your invoice attached for the electrical work completed at ${job.jobAddress || 'your property'}.
-
-Invoice: ${invoice.number}
-Amount Due: ${balanceDue}
-Due Date: ${due}
-
-Thank you for your business!
-
-${settings.companyName || 'Saybrook Electric, LLC.'}
-${settings.companyPhone || ''}
-${settings.companyEmail || ''}
-`);
-              const to = job.customerEmail ? encodeURIComponent(job.customerEmail) : '';
-              window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
-            }}
-            className="w-full border border-[#333] hover:border-[#dc2626]/50 text-[#A7A5A6] hover:text-[#dc2626] font-semibold py-2.5 rounded-lg text-sm transition-colors"
-          >
-            ✉ Send Invoice via Email
-          </button>
-
-          {/* QB push */}
-          <div className="border-t border-[#1a1a1a] pt-3">
-            {connected ? (
-              <>
-                <button
-                  onClick={handlePushToQB}
-                  disabled={qbStatus === 'pushing'}
-                  className="w-full bg-[#2CA01C] hover:bg-[#25881a] disabled:opacity-50 text-white font-bold py-2.5 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
-                >
-                  {qbStatus === 'pushing'
-                    ? <><span className="animate-spin">⟳</span> Pushing to QuickBooks...</>
-                    : <><span>📊</span> {job.qbInvoiceNum ? 'Re-push Invoice to QB' : 'Push Invoice to QuickBooks'}</>
-                  }
-                </button>
-                {job.qbInvoiceNum && <p className="text-xs text-[#555] text-center mt-1">QB Invoice #{job.qbInvoiceNum} · {job.qbInvoiceSyncedAt ? new Date(job.qbInvoiceSyncedAt).toLocaleDateString() : ''}</p>}
-                {qbStatus === 'success' && <p className="text-xs text-green-400 text-center mt-1">✓ {qbMsg}</p>}
-                {qbStatus === 'error' && <p className="text-xs text-red-400 text-center mt-1">✗ {qbMsg}</p>}
-              </>
-            ) : (
-              <div className="text-center py-2">
-                <p className="text-xs text-[#444]">Connect QuickBooks in Settings to push invoices directly to QB</p>
-                <div className="w-full border border-dashed border-[#1a1a1a] rounded-lg py-2.5 text-[#333] text-xs mt-2">
-                  📊 Push to QuickBooks (requires connection)
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Mark paid */}
-          {!invoice.paid ? (
-            <button
-              onClick={handleMarkPaid}
-              className="w-full border border-green-500/30 hover:border-green-500/60 text-green-400/70 hover:text-green-400 font-semibold py-2.5 rounded-lg text-sm transition-colors"
-            >
-              ✓ Mark as Paid
-            </button>
-          ) : (
-            <div className="text-center space-y-1">
-              <p className="text-xs text-green-400 font-semibold">✓ Paid {invoice.paidAt ? new Date(invoice.paidAt).toLocaleDateString() : ''}</p>
-              <button
-                onClick={() => onUpdate({ invoice: { ...invoice, paid: false, paidAt: null } })}
-                className="text-xs text-[#333] hover:text-[#555] transition-colors"
-              >
-                Undo paid
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main JobEditor ───────────────────────────────────────────────────────────
-export default function JobEditor({ job, customers, settings, onUpdate, onBack, onCreateCustomer, claimInvoiceNumber }) {
+export default function JobEditor({ job, customers, settings, onUpdate, onBack, onCreateCustomer }) {
   const [tab, setTab] = useState('setup');
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [showSignature, setShowSignature] = useState(false);
@@ -980,17 +783,6 @@ ${settings.companyLicense ? `License #${settings.companyLicense}` : ''}
                 </div>
               )}
             </div>
-
-            {/* ── INVOICE PANEL — appears when job is complete ── */}
-            {(job.status === 'complete' || job.invoice) && (
-              <InvoicePanel
-                job={job}
-                totals={totals}
-                settings={settings}
-                onUpdate={upd}
-                claimInvoiceNumber={claimInvoiceNumber}
-              />
-            )}
           </div>
         )}
       </div>

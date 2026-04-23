@@ -98,7 +98,6 @@ export default function App() {
           onUpdate={store.updateJob}
           onBack={() => setView('dashboard')}
           onCreateCustomer={store.createCustomer}
-          claimInvoiceNumber={store.claimInvoiceNumber}
         />
       )}
       {view === 'customers' && (

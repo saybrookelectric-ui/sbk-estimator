@@ -196,7 +196,4 @@ export const DEFAULT_SETTINGS = {
   logoBase64: null,
   logoName: null,
   pricingMode: 'both',
-  nextInvoiceNumber: 2000,
-  invoicePrefix: 'INV-',
-  invoiceTermsDays: 30,
 };

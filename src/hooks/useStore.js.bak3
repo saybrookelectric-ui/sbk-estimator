@@ -199,15 +199,6 @@ export function useStore() {
     lsSet('sbk_custom_prices', next);
   };
 
-  // ── INVOICE NUMBER ────────────────────────────────────────────────────────
-  const claimInvoiceNumber = () => {
-    const prefix = settings.invoicePrefix || 'INV-';
-    const num = settings.nextInvoiceNumber || 2000;
-    const invoiceNumber = `${prefix}${num}`;
-    setSettings({ nextInvoiceNumber: num + 1 });
-    return invoiceNumber;
-  };
-
   // ── BACKUP RESTORE ────────────────────────────────────────────────────────
   const restoreBackup = ({ jobs: backupJobs, customers: backupCustomers, settings: backupSettings }) => {
     // Merge — existing IDs win, new ones from backup get added
@@ -236,6 +227,6 @@ export function useStore() {
     setSettings, setCustomPrices,
     createJob, updateJob, deleteJob, duplicateJob, getJob,
     createCustomer, updateCustomer, deleteCustomer, getCustomer,
-    restoreBackup, claimInvoiceNumber,
+    restoreBackup,
   };
 }
