@@ -273,26 +273,20 @@ async function findOrCreateItem(name, unitPrice, settings) {
 export async function pushEstimateToQB(job, totals, settings) {
   const customerId = await findOrCreateCustomer(job, settings);
   const laborRate = settings.laborRate || 95;
-  const markupMultiplier = 1 + (settings.defaultMarkup || 20) / 100;
 
-  // Build line items — markup rolled into unit price (no separate O&P line shown to customer)
+  // Build line items
   const lines = [];
   for (const li of (job.lineItems || [])) {
     if (!li.qty || li.qty === 0) continue;
 
-    const baseCost = li.allInPrice != null
-      ? li.allInPrice  // already customer-facing price, leave as-is
-      : (li.material || 0) + (li.laborHrs || 0) * laborRate * (job.laborMultiplier || 1);
-
-    // Roll markup into unit price — allInPrice items are assumed already marked up
     const unitPrice = li.allInPrice != null
       ? li.allInPrice
-      : baseCost * markupMultiplier;
+      : (li.material || 0) + (li.laborHrs || 0) * laborRate * (job.laborMultiplier || 1);
 
     const totalPrice = unitPrice * li.qty;
     const itemId = await findOrCreateItem(li.name, unitPrice, settings);
 
-    lines.push({
+    const line = {
       DetailType: 'SalesItemLineDetail',
       Amount: parseFloat(totalPrice.toFixed(2)),
       Description: li.name + (li.notes ? ` — ${li.notes}` : ''),
@@ -301,7 +295,8 @@ export async function pushEstimateToQB(job, totals, settings) {
         UnitPrice: parseFloat(unitPrice.toFixed(2)),
         ...(itemId ? { ItemRef: { value: itemId } } : {}),
       },
-    });
+    };
+    lines.push(line);
   }
 
   if (lines.length === 0) throw new Error('No line items to push — add items first');
@@ -377,7 +372,6 @@ export function exportEstimateCSV(job, totals, settings) {
 export async function pushInvoiceToQB(job, totals, settings, invoice) {
   const customerId = await findOrCreateCustomer(job, settings);
   const laborRate = settings.laborRate || 95;
-  const markupMultiplier = 1 + (settings.defaultMarkup || 20) / 100;
 
   // Build line items from all scopes or single scope
   const isMultiScope = !!(job.scopes && job.scopes.length > 0);
@@ -388,16 +382,9 @@ export async function pushInvoiceToQB(job, totals, settings, invoice) {
   const lines = [];
   for (const li of allLineItems) {
     if (!li.qty || li.qty === 0) continue;
-
-    const baseCost = li.allInPrice != null
-      ? li.allInPrice
-      : (li.material || 0) + (li.laborHrs || 0) * laborRate * (job.laborMultiplier || 1);
-
-    // Roll markup into unit price — allInPrice items assumed already marked up
     const unitPrice = li.allInPrice != null
       ? li.allInPrice
-      : baseCost * markupMultiplier;
-
+      : (li.material || 0) + (li.laborHrs || 0) * laborRate * (job.laborMultiplier || 1);
     const totalPrice = unitPrice * li.qty;
     const itemId = await findOrCreateItem(li.name, unitPrice, settings);
     lines.push({
