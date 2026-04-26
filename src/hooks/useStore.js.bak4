@@ -29,16 +29,10 @@ export function useStore() {
   const [syncStatus, setSyncStatus] = useState('idle');
   const [syncError, setSyncError] = useState(null);
 
-  // ── Load from Supabase on mount — wait for auth session ─────────────────
+  // ── Load from Supabase on mount ───────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     async function loadFromCloud() {
-      // Wait for a valid session before fetching
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setSyncStatus('idle');
-        return;
-      }
       setSyncStatus('syncing');
       try {
         const [{ data: jobRows }, { data: custRows }, { data: settRows }] = await Promise.all([
@@ -69,41 +63,6 @@ export function useStore() {
     }
     loadFromCloud();
     return () => { cancelled = true; };
-  }, []);
-
-  // Re-fetch from cloud when user logs in
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN') {
-        setSyncStatus('syncing');
-        supabase.from('jobs').select('id, data, updated_at').order('updated_at', { ascending: false })
-          .then(({ data: jobRows }) => {
-            if (jobRows) {
-              const cloudJobs = jobRows.map(r => ({ ...r.data, id: r.id }));
-              setJobsState(cloudJobs);
-              lsSet('sbk_jobs', cloudJobs);
-            }
-          });
-        supabase.from('customers').select('id, data, updated_at').order('updated_at', { ascending: false })
-          .then(({ data: custRows }) => {
-            if (custRows) {
-              const cloudCustomers = custRows.map(r => ({ ...r.data, id: r.id }));
-              setCustomersState(cloudCustomers);
-              lsSet('sbk_customers', cloudCustomers);
-            }
-          });
-        supabase.from('settings').select('data').eq('id', 'default').maybeSingle()
-          .then(({ data: settRows }) => {
-            if (settRows?.data) {
-              const merged = { ...DEFAULT_SETTINGS, ...settRows.data };
-              setSettingsState(merged);
-              lsSet('sbk_settings', merged);
-            }
-            setSyncStatus('synced');
-          });
-      }
-    });
-    return () => subscription.unsubscribe();
   }, []);
 
   // ── Upsert helpers ────────────────────────────────────────────────────────
