@@ -5,30 +5,14 @@ import NewJobScreen from './components/NewJobScreen';
 import JobEditor from './components/JobEditor';
 import { CustomerDatabase } from './components/CustomerDB';
 import SettingsPage from './components/SettingsPage';
-import LoginScreen from './components/LoginScreen';
 import { handleQBCallback, setQBTokens } from './utils/quickbooks';
-import { supabase } from './utils/supabase';
 
 export default function App() {
   const store = useStore();
   const [view, setView] = useState('dashboard');
   const [activeJobId, setActiveJobId] = useState(null);
-  const [qbCallbackStatus, setQbCallbackStatus] = useState(null);
+  const [qbCallbackStatus, setQbCallbackStatus] = useState(null); // null | 'processing' | 'success' | 'error'
   const [qbCallbackMsg, setQbCallbackMsg] = useState('');
-  const [session, setSession] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-
-  // Check auth state on mount
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setAuthLoading(false);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
 
   // Handle QB OAuth callback on page load
   useEffect(() => {
@@ -73,23 +57,6 @@ export default function App() {
   };
 
   const job = store.getJob(activeJobId);
-
-  // Auth loading state
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-4xl mb-4 animate-pulse">⚡</div>
-          <p className="text-[#444] text-sm">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Not logged in — show login screen
-  if (!session) {
-    return <LoginScreen onLogin={setSession} />;
-  }
 
   return (
     <>

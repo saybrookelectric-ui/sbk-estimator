@@ -3,7 +3,6 @@ import { JOB_TYPES } from '../data/jobTypes';
 import { calcJobTotals, formatCurrency } from '../utils/pricing';
 import { StatusBadge, GhostBtn, YellowBtn } from './UI';
 import { exportBackup, importBackup } from '../utils/backup';
-import { supabase } from '../utils/supabase';
 
 export default function Dashboard({ jobs, customers, settings, onNewJob, onSelectJob, onDeleteJob, onDuplicateJob, onCustomers, onSettings, syncStatus, syncError, onRestoreBackup }) {
   const [search, setSearch] = useState('');
@@ -11,10 +10,6 @@ export default function Dashboard({ jobs, customers, settings, onNewJob, onSelec
   const [filterStatus, setFilterStatus] = useState('all');
   const [backupMsg, setBackupMsg] = useState('');
   const restoreRef = useRef(null);
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-  };
 
   const handleExport = () => {
     const result = exportBackup(jobs, customers, settings);
@@ -81,9 +76,6 @@ export default function Dashboard({ jobs, customers, settings, onNewJob, onSelec
               </button>
               <button onClick={onSettings} className="text-[#A7A5A6] hover:text-white text-xs px-3 py-1.5 rounded-lg border border-[#222] hover:border-[#444] transition-colors">
                 ⚙ Settings
-              </button>
-              <button onClick={handleSignOut} className="text-[#A7A5A6] hover:text-red-400 text-xs px-3 py-1.5 rounded-lg border border-[#222] hover:border-red-400/40 transition-colors">
-                Sign Out
               </button>
               {/* Backup / Restore */}
               <div className="relative">
