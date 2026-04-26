@@ -4,8 +4,8 @@
 const QB_BASE_PROD = 'https://quickbooks.api.intuit.com/v3/company';
 const QB_BASE_SANDBOX = 'https://sandbox-quickbooks.api.intuit.com/v3/company';
 const QB_AUTH = 'https://appcenter.intuit.com/connect/oauth2';
-const QB_TOKEN_PROXY = 'https://sbk-qb-token.saybrook-electric.workers.dev';
-const QB_API_PROXY = 'https://sbk-qb-api.saybrook-electric.workers.dev';
+const QB_TOKEN_PROXY = '/.netlify/functions/qb-token';
+const QB_API_PROXY = '/.netlify/functions/qb-api';
 
 function getQBBase(environment) {
   return environment === 'sandbox' ? QB_BASE_SANDBOX : QB_BASE_PROD;
