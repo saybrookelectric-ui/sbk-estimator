@@ -25,10 +25,10 @@ function QBExportPanel({ job, totals, settings, onUpdate }) {
     setQbStatus('pushing');
     setQbMessage('');
     try {
-      const { estimateId, estimateNum } = await pushEstimateToQB(job, totals, settings);
+      const { estimateNum } = await pushEstimateToQB(job, totals, settings);
       setQbStatus('success');
       setQbMessage(`Estimate #${estimateNum || '—'} created in QuickBooks`);
-      onUpdate({ qbEstimateNum: estimateNum, qbEstimateId: estimateId, qbSyncedAt: new Date().toISOString() });
+      onUpdate({ qbEstimateNum: estimateNum, qbSyncedAt: new Date().toISOString() });
     } catch (e) {
       setQbStatus('error');
       setQbMessage(e.message);
@@ -367,23 +367,6 @@ function InvoicePanel({ job, totals, settings, onUpdate, claimInvoiceNumber }) {
               onChange={e => onUpdate({ invoice: { ...invoice, dueDate: new Date(e.target.value).toISOString() } })}
               className="bg-[#1a1a1a] border border-[#2a2a2a] rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-[#f59e0b] w-full"
             />
-            {/* Quick presets */}
-            <div className="flex gap-1 mt-1.5 flex-wrap">
-              {[
-                { label: 'Due Now', days: 0 },
-                { label: 'Net 15', days: 15 },
-                { label: 'Net 30', days: 30 },
-                { label: 'Net 45', days: 45 },
-              ].map(({ label, days }) => (
-                <button
-                  key={label}
-                  onClick={() => onUpdate({ invoice: { ...invoice, dueDate: new Date(Date.now() + days * 86400000).toISOString() } })}
-                  className="text-xs px-2 py-0.5 rounded border border-[#2a2a2a] text-[#555] hover:border-[#f59e0b]/50 hover:text-[#f59e0b] transition-colors"
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
 

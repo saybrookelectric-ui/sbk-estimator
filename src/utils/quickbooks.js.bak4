@@ -444,9 +444,9 @@ export async function pushInvoiceToQB(job, totals, settings, invoice) {
     DocNumber: invoice.number,
     CustomerMemo: { value: scopeTitle + (job.notes ? `\n${job.notes}` : '') },
     BillEmail: job.customerEmail ? { Address: job.customerEmail } : undefined,
-    // Link to existing QB estimate only if we have a valid QB estimate ID
-    ...(job.qbEstimateId && job.qbEstimateId !== 'undefined' ? {
-      LinkedTxn: [{ TxnId: String(job.qbEstimateId), TxnType: 'Estimate' }]
+    // Link to existing QB estimate if available
+    ...(job.qbEstimateNum ? {
+      LinkedTxn: [{ TxnId: job.qbEstimateId, TxnType: 'Estimate' }]
     } : {}),
   };
 
