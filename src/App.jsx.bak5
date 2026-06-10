@@ -56,14 +56,8 @@ export default function App() {
     }
   }, []);
 
-  const handleNewJobType = (jobType, lineItems = [], notes = '') => {
-    const id = store.createJob({
-      jobType,
-      status: 'draft',
-      lineItems: lineItems || [],
-      notes: notes || '',
-      scopeTitle: lineItems?.length > 0 ? 'House Rewire (Preliminary)' : '',
-    });
+  const handleNewJobType = (jobType) => {
+    const id = store.createJob({ jobType, status: 'draft' });
     setActiveJobId(id);
     setView('job');
   };
@@ -128,7 +122,7 @@ export default function App() {
         </div>
       )}
 
-      {view === 'new' && <NewJobScreen onSelect={handleNewJobType} onBack={() => setView('dashboard')} settings={store.settings} />}
+      {view === 'new' && <NewJobScreen onSelect={handleNewJobType} onBack={() => setView('dashboard')} />}
       {view === 'job' && job && (
         <JobEditor
           job={job}
