@@ -124,12 +124,6 @@ export function useStore() {
     if (error) console.error('Supabase settings upsert:', error.message);
   }, []);
 
-  // Debounced versions — reduce IO by batching rapid updates
-  // Jobs: 2s debounce (typing in fields fires many updates per second)
-  // Customers: 1.5s debounce
-  // Settings: 1s debounce (already had this)
-  const debouncedUpsertJob = useDebounce(upsertJob, 2000);
-  const debouncedUpsertCustomer = useDebounce(upsertCustomer, 1500);
   const debouncedUpsertSettings = useDebounce(upsertSettings, 1000);
 
   // ── JOBS ──────────────────────────────────────────────────────────────────
@@ -155,7 +149,7 @@ export function useStore() {
       ...data,
     };
     setJobs(prev => [job, ...prev]);
-    upsertJob(job); // immediate on create
+    upsertJob(job);
     return id;
   };
 
@@ -165,7 +159,7 @@ export function useStore() {
         j.id === id ? { ...j, ...updates, updatedAt: new Date().toISOString() } : j
       );
       const updated = next.find(j => j.id === id);
-      if (updated) debouncedUpsertJob(updated); // debounced — batches rapid typing
+      if (updated) upsertJob(updated);
       return next;
     });
   };
@@ -190,7 +184,7 @@ export function useStore() {
       signature: null, signedAt: null,
     };
     setJobs(prev => [duped, ...prev]);
-    upsertJob(duped); // immediate on duplicate
+    upsertJob(duped);
     return newId;
   };
 
@@ -209,7 +203,7 @@ export function useStore() {
     const id = Date.now().toString();
     const customer = { id, createdAt: new Date().toISOString(), ...data };
     setCustomers(prev => [customer, ...prev]);
-    upsertCustomer(customer); // immediate on create
+    upsertCustomer(customer);
     return id;
   };
 
@@ -217,7 +211,7 @@ export function useStore() {
     setCustomers(prev => {
       const next = prev.map(c => c.id === id ? { ...c, ...updates } : c);
       const updated = next.find(c => c.id === id);
-      if (updated) debouncedUpsertCustomer(updated); // debounced
+      if (updated) upsertCustomer(updated);
       return next;
     });
   };
