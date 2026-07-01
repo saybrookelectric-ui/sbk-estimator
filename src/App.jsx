@@ -56,13 +56,14 @@ export default function App() {
     }
   }, []);
 
-  const handleNewJobType = (jobType, lineItems = [], notes = '') => {
+  const handleNewJobType = (jobType, lineItems = [], notes = '', scopes = null) => {
     const id = store.createJob({
       jobType,
       status: 'draft',
-      lineItems: lineItems || [],
+      lineItems: scopes ? [] : (lineItems || []),
+      scopes: scopes || null,
       notes: notes || '',
-      scopeTitle: lineItems?.length > 0 ? 'House Rewire (Preliminary)' : '',
+      scopeTitle: scopes ? 'New Construction (Preliminary)' : lineItems?.length > 0 ? 'House Rewire (Preliminary)' : '',
     });
     setActiveJobId(id);
     setView('job');

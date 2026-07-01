@@ -22,6 +22,7 @@ export const CONDUIT_ASSEMBLY_IDS = new Set([
 ]);
 
 export const JOB_TYPES = [
+  { id: 'new_construction', label: 'New Construction', icon: '🏗️', color: '#22c55e' },
   { id: 'rewire', label: 'Whole House Rewire', icon: '🏠', color: '#f59e0b' },
   { id: 'service', label: 'Service Upgrade / Panel', icon: '⚡', color: '#f59e0b' },
   { id: 'ev_charger', label: 'EV Charger', icon: '🔌', color: '#f59e0b' },
@@ -38,6 +39,26 @@ export const JOB_TYPES = [
 // Assembly = a pre-priced line item with material cost and labor hours
 // User picks which assemblies apply, adjusts qty, can override price
 export const JOB_ASSEMBLIES = {
+  new_construction: [
+    { id: 'nc_service_ug_200', name: 'Service Entrance 200A Underground', material: 1350, laborHrs: 16, unit: 'job' },
+    { id: 'nc_service_oh_200', name: 'Service Entrance 200A Overhead', material: 1050, laborHrs: 12, unit: 'job' },
+    { id: 'nc_panel_200', name: 'Main Panel 200A 40-space', material: 480, laborHrs: 6, unit: 'each' },
+    { id: 'nc_temp_power', name: 'Temporary Power (60A panel)', material: 380, laborHrs: 5, unit: 'job' },
+    { id: 'nc_outlet_nc', name: 'Outlet (new construction)', material: 7, laborHrs: 0.35, unit: 'each' },
+    { id: 'nc_gfci_nc', name: 'GFCI Receptacle (new construction)', material: 22, laborHrs: 0.40, unit: 'each' },
+    { id: 'nc_switch_nc', name: 'Switch (new construction)', material: 6, laborHrs: 0.25, unit: 'each' },
+    { id: 'nc_dimmer_nc', name: 'Dimmer Switch', material: 32, laborHrs: 0.25, unit: 'each' },
+    { id: 'nc_dedicated_20a', name: 'Dedicated 20A Circuit', material: 45, laborHrs: 2.0, unit: 'each' },
+    { id: 'nc_dedicated_30a', name: 'Dedicated 30A Circuit (dryer/range)', material: 75, laborHrs: 2.5, unit: 'each' },
+    { id: 'nc_hvac_circuit', name: 'HVAC Disconnect & Circuit', material: 95, laborHrs: 3.5, unit: 'each' },
+    { id: 'nc_ev_charger', name: 'EV Charger Circuit (50A)', material: 185, laborHrs: 4, unit: 'each' },
+    { id: 'nc_data_drop', name: 'Cat6 Ethernet Drop', material: 28, laborHrs: 0.75, unit: 'each' },
+    { id: 'nc_coax_drop', name: 'Coax/Cable TV Drop', material: 18, laborHrs: 0.50, unit: 'each' },
+    { id: 'nc_smoke_co', name: 'Smoke/CO Detector (hardwired)', material: 38, laborHrs: 0.35, unit: 'each' },
+    { id: 'nc_ceiling_fan', name: 'Ceiling Fan (rough-in + connection)', material: 18, laborHrs: 0.75, unit: 'each' },
+    { id: 'nc_exhaust_fan', name: 'Exhaust Fan w/ Light', material: 68, laborHrs: 0.75, unit: 'each' },
+    { id: 'nc_permit', name: 'Permit Fee', material: 550, laborHrs: 2, unit: 'job' },
+  ],
   service: [
     { id: 'panel_100a', name: '100A Panel (main breaker)', material: 165, laborHrs: 6, unit: 'each', notes: 'Includes new panel, main breaker, and trim' },
     { id: 'panel_200a', name: '200A Panel (main breaker)', material: 285, laborHrs: 8, unit: 'each', notes: 'Includes new panel, main breaker, and trim' },
