@@ -1,13 +1,42 @@
 // Shared UI primitives using SBK brand colors
+import { useState, useEffect, useRef } from 'react';
 
+// Input uses internal local state so paste+blur doesn't lose data.
+// onChange fires on every keystroke for live totals,
+// but onBlur forces a final commit so the value always sticks.
 export function Input({ label, value, onChange, placeholder, type = 'text', hint, className = '' }) {
+  const [localVal, setLocalVal] = useState(value ?? '');
+  const lastExternal = useRef(value);
+
+  // Sync if parent value changes from outside (e.g. loading a job)
+  useEffect(() => {
+    if (value !== lastExternal.current) {
+      lastExternal.current = value;
+      setLocalVal(value ?? '');
+    }
+  }, [value]);
+
+  const handleChange = (e) => {
+    setLocalVal(e.target.value);
+    onChange(e.target.value);
+  };
+
+  // On blur, force-commit the current local value in case
+  // the debounced store write hasn't caught up yet
+  const handleBlur = () => {
+    if (localVal !== value) {
+      onChange(localVal);
+    }
+  };
+
   return (
     <div className={className}>
       {label && <label className="block text-xs font-semibold text-[#A7A5A6] uppercase tracking-wider mb-1.5">{label}</label>}
       <input
         type={type}
-        value={value ?? ''}
-        onChange={e => onChange(e.target.value)}
+        value={localVal}
+        onChange={handleChange}
+        onBlur={handleBlur}
         placeholder={placeholder}
         className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-sm text-white placeholder-[#444] focus:outline-none focus:border-[#f59e0b] transition-colors"
       />
@@ -34,12 +63,34 @@ export function Select({ label, value, onChange, options, className = '' }) {
 }
 
 export function Textarea({ label, value, onChange, placeholder, rows = 3, className = '' }) {
+  const [localVal, setLocalVal] = useState(value ?? '');
+  const lastExternal = useRef(value);
+
+  useEffect(() => {
+    if (value !== lastExternal.current) {
+      lastExternal.current = value;
+      setLocalVal(value ?? '');
+    }
+  }, [value]);
+
+  const handleChange = (e) => {
+    setLocalVal(e.target.value);
+    onChange(e.target.value);
+  };
+
+  const handleBlur = () => {
+    if (localVal !== value) {
+      onChange(localVal);
+    }
+  };
+
   return (
     <div className={className}>
       {label && <label className="block text-xs font-semibold text-[#A7A5A6] uppercase tracking-wider mb-1.5">{label}</label>}
       <textarea
-        value={value ?? ''}
-        onChange={e => onChange(e.target.value)}
+        value={localVal}
+        onChange={handleChange}
+        onBlur={handleBlur}
         placeholder={placeholder}
         rows={rows}
         className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-sm text-white placeholder-[#444] focus:outline-none focus:border-[#f59e0b] resize-none transition-colors"
