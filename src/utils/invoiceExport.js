@@ -18,7 +18,10 @@ export function generateInvoicePDF(job, settings, invoice) {
     : (totals.lineDetails || []);
 
   const deposit = invoice.deposit || 0;
-  const balanceDue = totals.grandTotal - deposit;
+  const discount = job.discount || 0;
+  const discountAmt = totals.grandTotal * (discount / 100);
+  const invoiceTotal = totals.grandTotal - discountAmt;
+  const balanceDue = invoiceTotal - deposit;
 
   const jobType = JOB_TYPES.find(t => t.id === job.jobType)?.label || 'Electrical Work';
   const scopeTitle = job.scopeTitle || (isMultiScope
@@ -132,6 +135,8 @@ ${invoice.paid ? '<div class="paid-stamp"><span>PAID</span></div>' : ''}
     <tr><td style="border-top:2px solid #eee;padding-top:10px">Subtotal</td><td style="border-top:2px solid #eee;padding-top:10px">${formatCurrency(totals.subtotal)}</td></tr>
     <tr><td>Overhead & Profit (${totals.markupPct}%)</td><td>${formatCurrency(totals.markupAmt)}</td></tr>
     <tr style="font-weight:700"><td>Invoice Total</td><td>${formatCurrency(totals.grandTotal)}</td></tr>
+    ${discount > 0 ? `<tr><td style="color:#e53e3e">Discount (${discount}%)</td><td style="color:#e53e3e">-${formatCurrency(discountAmt)}</td></tr>
+    <tr style="font-weight:700"><td>After Discount</td><td>${formatCurrency(invoiceTotal)}</td></tr>` : ''}
     ${deposit > 0 ? `<tr class="deposit-row"><td>Deposit Received</td><td>-${formatCurrency(deposit)}</td></tr>` : ''}
     <tr class="balance"><td>BALANCE DUE</td><td>${formatCurrency(balanceDue)}</td></tr>
   </tbody>

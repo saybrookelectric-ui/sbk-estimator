@@ -73,6 +73,10 @@ function buildHTML(job, settings, mode, totals) {
     </div>`;
 
   // ── Totals table ──
+  const discount = job.discount || 0;
+  const discountAmt = totals.grandTotal * (discount / 100);
+  const finalTotal = totals.grandTotal - discountAmt;
+
   const totalsTable = `
     <table class="totals">
       <tbody>
@@ -83,7 +87,11 @@ function buildHTML(job, settings, mode, totals) {
         <tr><td style="color:#555;border-top:1px solid #eee;padding-top:8px">Subtotal</td><td style="text-align:right;border-top:1px solid #eee;padding-top:8px">${formatCurrency(totals.subtotal)}</td></tr>
         <tr><td style="color:#555">Overhead & Profit (${totals.markupPct}%)</td><td style="text-align:right">${formatCurrency(totals.markupAmt)}</td></tr>
         ` : ''}
-        <tr class="grand"><td>TOTAL ESTIMATE</td><td style="text-align:right">${formatCurrency(totals.grandTotal)}</td></tr>
+        ${discount > 0 ? `
+        <tr><td style="color:#555;border-top:1px solid #eee;padding-top:8px">Before Discount</td><td style="text-align:right;border-top:1px solid #eee;padding-top:8px;text-decoration:line-through;color:#aaa">${formatCurrency(totals.grandTotal)}</td></tr>
+        <tr><td style="color:#e53e3e">Discount (${discount}%)</td><td style="text-align:right;color:#e53e3e">-${formatCurrency(discountAmt)}</td></tr>
+        ` : ''}
+        <tr class="grand"><td>${discount > 0 ? 'TOTAL AFTER DISCOUNT' : 'TOTAL ESTIMATE'}</td><td style="text-align:right">${formatCurrency(finalTotal)}</td></tr>
       </tbody>
     </table>`;
 

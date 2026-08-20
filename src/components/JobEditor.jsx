@@ -192,7 +192,10 @@ function AddScopeModal({ onAdd, onClose }) {
 }
 
 // ─── Multi-Scope Totals Breakdown ─────────────────────────────────────────────
-function MultiScopeTotals({ totals, settings }) {
+function MultiScopeTotals({ totals, settings, discount, onDiscountChange }) {
+  const discountAmt = totals.grandTotal * ((discount || 0) / 100);
+  const discountedTotal = totals.grandTotal - discountAmt;
+
   return (
     <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-xl overflow-hidden">
       <div className="p-4 space-y-4">
@@ -231,18 +234,52 @@ function MultiScopeTotals({ totals, settings }) {
             <span className="text-[#555]">Overhead & Profit ({totals.markupPct}%)</span>
             <span className="text-white font-semibold">{formatCurrency(totals.markupAmt)}</span>
           </div>
+          {/* Discount */}
+          <div className="flex items-center justify-between pt-1 border-t border-[#1a1a1a]">
+            <span className="text-[#555] text-sm">Discount</span>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min="0" max="100" step="0.5"
+                value={discount || ''}
+                onChange={e => onDiscountChange(parseFloat(e.target.value) || 0)}
+                placeholder="0"
+                className="w-16 bg-[#1a1a1a] border border-[#2a2a2a] rounded px-2 py-1 text-sm text-right text-white focus:outline-none focus:border-[#f59e0b]"
+              />
+              <span className="text-[#555] text-sm">%</span>
+              {discountAmt > 0 && <span className="text-red-400 text-sm font-semibold">-{formatCurrency(discountAmt)}</span>}
+            </div>
+          </div>
         </div>
       </div>
-      <div className="bg-[#f59e0b] px-4 py-4 flex justify-between items-center">
-        <span className="condensed text-xl font-black text-black">TOTAL ESTIMATE</span>
-        <span className="condensed text-3xl font-black text-black">{formatCurrency(totals.grandTotal)}</span>
-      </div>
+      {discount > 0 ? (
+        <>
+          <div className="bg-[#1a1a1a] px-4 py-2 flex justify-between items-center">
+            <span className="text-sm text-[#555]">Before discount</span>
+            <span className="text-sm text-[#555] line-through">{formatCurrency(totals.grandTotal)}</span>
+          </div>
+          <div className="bg-[#f59e0b] px-4 py-4 flex justify-between items-center">
+            <div>
+              <p className="condensed text-xl font-black text-black">TOTAL ESTIMATE</p>
+              <p className="text-black/70 text-xs font-semibold">{discount}% discount applied</p>
+            </div>
+            <span className="condensed text-3xl font-black text-black">{formatCurrency(discountedTotal)}</span>
+          </div>
+        </>
+      ) : (
+        <div className="bg-[#f59e0b] px-4 py-4 flex justify-between items-center">
+          <span className="condensed text-xl font-black text-black">TOTAL ESTIMATE</span>
+          <span className="condensed text-3xl font-black text-black">{formatCurrency(totals.grandTotal)}</span>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── Single-Scope Totals (original) ──────────────────────────────────────────
-function SingleScopeTotals({ totals, settings }) {
+function SingleScopeTotals({ totals, settings, discount, onDiscountChange }) {
+  const discountAmt = totals.grandTotal * ((discount || 0) / 100);
+  const discountedTotal = totals.grandTotal - discountAmt;
+
   return (
     <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-xl overflow-hidden">
       <div className="p-4 space-y-2.5">
@@ -273,11 +310,42 @@ function SingleScopeTotals({ totals, settings }) {
           <span className="text-[#555]">Overhead & Profit ({totals.markupPct}%)</span>
           <span className="text-white font-semibold">{formatCurrency(totals.markupAmt)}</span>
         </div>
+        {/* Discount row */}
+        <div className="flex items-center justify-between pt-1 border-t border-[#1a1a1a]">
+          <span className="text-[#555] text-sm">Discount</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="number" min="0" max="100" step="0.5"
+              value={discount || ''}
+              onChange={e => onDiscountChange(parseFloat(e.target.value) || 0)}
+              placeholder="0"
+              className="w-16 bg-[#1a1a1a] border border-[#2a2a2a] rounded px-2 py-1 text-sm text-right text-white focus:outline-none focus:border-[#f59e0b]"
+            />
+            <span className="text-[#555] text-sm">%</span>
+            {discountAmt > 0 && <span className="text-red-400 text-sm font-semibold">-{formatCurrency(discountAmt)}</span>}
+          </div>
+        </div>
       </div>
-      <div className="bg-[#f59e0b] px-4 py-4 flex justify-between items-center">
-        <span className="condensed text-xl font-black text-black">TOTAL ESTIMATE</span>
-        <span className="condensed text-3xl font-black text-black">{formatCurrency(totals.grandTotal)}</span>
-      </div>
+      {discount > 0 ? (
+        <>
+          <div className="bg-[#1a1a1a] px-4 py-2 flex justify-between items-center">
+            <span className="text-sm text-[#555]">Before discount</span>
+            <span className="text-sm text-[#555] line-through">{formatCurrency(totals.grandTotal)}</span>
+          </div>
+          <div className="bg-[#f59e0b] px-4 py-4 flex justify-between items-center">
+            <div>
+              <p className="condensed text-xl font-black text-black">TOTAL ESTIMATE</p>
+              <p className="text-black/70 text-xs font-semibold">{discount}% discount applied</p>
+            </div>
+            <span className="condensed text-3xl font-black text-black">{formatCurrency(discountedTotal)}</span>
+          </div>
+        </>
+      ) : (
+        <div className="bg-[#f59e0b] px-4 py-4 flex justify-between items-center">
+          <span className="condensed text-xl font-black text-black">TOTAL ESTIMATE</span>
+          <span className="condensed text-3xl font-black text-black">{formatCurrency(totals.grandTotal)}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -905,8 +973,8 @@ export default function JobEditor({ job, customers, settings, onUpdate, onBack, 
           <div className="space-y-5">
             {/* Totals */}
             {totals.isMultiScope
-              ? <MultiScopeTotals totals={totals} settings={settings} />
-              : <SingleScopeTotals totals={totals} settings={settings} />
+              ? <MultiScopeTotals totals={totals} settings={settings} discount={job.discount || 0} onDiscountChange={v => upd({ discount: v })} />
+              : <SingleScopeTotals totals={totals} settings={settings} discount={job.discount || 0} onDiscountChange={v => upd({ discount: v })} />
             }
 
             {/* Internal numbers */}
@@ -916,6 +984,12 @@ export default function JobEditor({ job, customers, settings, onUpdate, onBack, 
                 <div className="flex justify-between"><span className="text-[#444]">Total labor hours</span><span className="font-mono text-[#A7A5A6]">{formatHours(totals.totalLaborHrs)}</span></div>
                 <div className="flex justify-between"><span className="text-[#444]">Material cost</span><span className="font-mono text-[#A7A5A6]">{formatCurrency(totals.totalMaterial)}</span></div>
                 <div className="flex justify-between border-t border-[#1a1a1a] pt-1.5"><span className="text-[#444]">Markup earned</span><span className="font-mono text-green-400 font-bold">{formatCurrency(totals.markupAmt)}</span></div>
+                {(job.discount || 0) > 0 && (
+                  <>
+                    <div className="flex justify-between"><span className="text-[#444]">Discount given ({job.discount}%)</span><span className="font-mono text-red-400">-{formatCurrency(totals.grandTotal * (job.discount / 100))}</span></div>
+                    <div className="flex justify-between border-t border-[#1a1a1a] pt-1.5"><span className="text-[#444]">Net after discount</span><span className="font-mono text-[#f59e0b] font-bold">{formatCurrency(totals.grandTotal * (1 - job.discount / 100))}</span></div>
+                  </>
+                )}
               </div>
             </div>
 
