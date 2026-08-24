@@ -642,40 +642,74 @@ export default function JobEditor({ job, customers, settings, onUpdate, onBack, 
   return (
     <div className="min-h-screen bg-black text-white">
       {lightboxPhoto && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col" onClick={() => setLightboxPhoto(null)}>
+        <div className="fixed inset-0 z-50 bg-black flex flex-col" onClick={() => {
+          // Restore no-zoom viewport when closing
+          const vp = document.querySelector('meta[name="viewport"]');
+          if (vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+          setLightboxPhoto(null);
+        }}>
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-black/90 flex-shrink-0 safe-top" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setLightboxPhoto(null)} className="flex items-center gap-2 text-[#f59e0b] text-sm font-semibold">
+          <div className="flex items-center justify-between px-4 py-3 bg-black/90 flex-shrink-0" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => {
+                const vp = document.querySelector('meta[name="viewport"]');
+                if (vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+                setLightboxPhoto(null);
+              }}
+              className="flex items-center gap-2 text-[#f59e0b] text-sm font-semibold"
+            >
               ← Back
             </button>
-            {lightboxPhoto.caption && <span className="text-xs text-[#888] max-w-[60%] truncate">{lightboxPhoto.caption}</span>}
-            <a
-              href={lightboxPhoto.dataUrl}
-              download={`photo-${Date.now()}.jpg`}
-              onClick={e => e.stopPropagation()}
-              className="text-xs text-[#555] hover:text-white transition-colors"
+            {lightboxPhoto.caption && <span className="text-xs text-[#888] max-w-[50%] truncate">{lightboxPhoto.caption}</span>}
+            {/* iOS Share Sheet — tap Share then Save Image */}
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                try {
+                  // Convert dataUrl to blob for sharing
+                  const res = await fetch(lightboxPhoto.dataUrl);
+                  const blob = await res.blob();
+                  const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+                  if (navigator.share && navigator.canShare({ files: [file] })) {
+                    await navigator.share({ files: [file], title: lightboxPhoto.caption || 'Job Photo' });
+                  } else {
+                    // Fallback: trigger download
+                    const a = document.createElement('a');
+                    a.href = lightboxPhoto.dataUrl;
+                    a.download = `job-photo-${Date.now()}.jpg`;
+                    a.click();
+                  }
+                } catch (err) {
+                  // User cancelled share — that's fine
+                }
+              }}
+              className="text-[#f59e0b] text-sm font-semibold px-2 py-1 border border-[#f59e0b]/30 rounded-lg"
             >
-              Save
-            </a>
+              Share / Save
+            </button>
           </div>
-          {/* Scrollable image area */}
+          {/* Scrollable + pinch-zoomable image area */}
           <div
             className="flex-1 overflow-auto"
-            onClick={() => setLightboxPhoto(null)}
             style={{ WebkitOverflowScrolling: 'touch' }}
+            onClick={() => {
+              const vp = document.querySelector('meta[name="viewport"]');
+              if (vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+              setLightboxPhoto(null);
+            }}
           >
             <div className="min-h-full flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
               <img
                 src={lightboxPhoto.dataUrl}
                 alt={lightboxPhoto.caption || 'Job photo'}
-                style={{ maxWidth: '100%', height: 'auto', display: 'block', borderRadius: '8px' }}
+                style={{ maxWidth: '100%', height: 'auto', display: 'block', borderRadius: '8px', touchAction: 'pinch-zoom' }}
                 onClick={e => e.stopPropagation()}
               />
             </div>
           </div>
           {/* Footer */}
           <div className="px-4 py-3 text-center bg-black/90 flex-shrink-0">
-            <span className="text-xs text-[#444]">Tap outside to close · Pinch to zoom</span>
+            <span className="text-xs text-[#444]">Tap outside to close · Pinch to zoom · Share to save to Photos</span>
           </div>
         </div>
       )}
@@ -861,7 +895,12 @@ export default function JobEditor({ job, customers, settings, onUpdate, onBack, 
                         {/* Tap thumbnail to view */}
                         <button
                           className="w-full block"
-                          onClick={() => setLightboxPhoto({ dataUrl: photo.dataUrl, caption: photo.caption })}
+                          onClick={() => {
+                            // Allow pinch-to-zoom in lightbox
+                            const vp = document.querySelector('meta[name="viewport"]');
+                            if (vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes');
+                            setLightboxPhoto({ dataUrl: photo.dataUrl, caption: photo.caption });
+                          }}
                         >
                           <img
                             src={photo.dataUrl}
