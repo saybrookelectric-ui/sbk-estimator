@@ -61,7 +61,6 @@ export default function SettingsPage({ settings, onSave, onBack }) {
     { id: 'logo', label: 'Logo' },
     { id: 'pricing', label: 'Pricing' },
     { id: 'quickbooks', label: 'QuickBooks' },
-    { id: 'calendar', label: 'Calendar' },
   ];
 
   return (
