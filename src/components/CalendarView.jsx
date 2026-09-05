@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 
-// Public calendar ICS feed — works on all devices without auth
-const CALENDAR_ID = '20is8phm3nkuol7ogm1e8pnj2k@group.calendar.google.com';
-const CALENDAR_EMBED = `https://calendar.google.com/calendar/embed?src=20is8phm3nkuol7ogm1e8pnj2k%40group.calendar.google.com&ctz=America%2FNew_York&showTitle=0&showNav=1&showDate=1&showPrint=0&showTabs=0&showCalendars=0`;
-const CALENDAR_OPEN = `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(CALENDAR_ID)}`;
+// Public calendar open link
+const CALENDAR_OPEN = `https://calendar.google.com/calendar/r`;
 
 function buildNewEventUrl({ title='', date='', startTime='', endTime='', location='', details='' }) {
   const base = 'https://calendar.google.com/calendar/render?action=TEMPLATE';
@@ -250,7 +248,7 @@ function NewEventModal({ onClose }) {
 }
 
 // ── Main Calendar View ────────────────────────────────────────────────────────
-export default function CalendarView({ jobs, settings }) {
+export default function CalendarView({ jobs, settings, onGoToSettings }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -305,7 +303,7 @@ export default function CalendarView({ jobs, settings }) {
             <p className="text-2xl">📅</p>
             <p className="text-sm text-[#A7A5A6] font-semibold">Calendar not connected</p>
             <p className="text-xs text-[#444]">Add your Google Calendar secret ICS URL in Settings → Calendar</p>
-            <button onClick={() => window.history.back()}
+            <button onClick={() => onGoToSettings && onGoToSettings()}
               className="text-xs px-4 py-2 bg-[#f59e0b] text-black font-bold rounded-lg">
               Go to Settings
             </button>
