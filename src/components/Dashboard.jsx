@@ -5,7 +5,7 @@ import { StatusBadge, GhostBtn, YellowBtn } from './UI';
 import { exportBackup, importBackup } from '../utils/backup';
 import { supabase } from '../utils/supabase';
 
-export default function Dashboard({ jobs, customers, settings, onNewJob, onSelectJob, onDeleteJob, onDuplicateJob, onCustomers, onSettings, syncStatus, syncError, onRestoreBackup }) {
+export default function Dashboard({ jobs, customers, settings, onNewJob, onSelectJob, onDeleteJob, onDuplicateJob, onCustomers, onSettings, syncStatus, syncError, onRestoreBackup, onCalendar, onCalculator }) {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -78,6 +78,12 @@ export default function Dashboard({ jobs, customers, settings, onNewJob, onSelec
             <div className="flex items-center gap-2">
               <button onClick={onCustomers} className="text-[#A7A5A6] hover:text-white text-xs px-3 py-1.5 rounded-lg border border-[#222] hover:border-[#444] transition-colors">
                 👤 Customers
+              </button>
+              <button onClick={onCalendar} className="text-[#A7A5A6] hover:text-white text-xs px-3 py-1.5 rounded-lg border border-[#222] hover:border-[#444] transition-colors">
+                📅 Calendar
+              </button>
+              <button onClick={onCalculator} className="text-[#A7A5A6] hover:text-white text-xs px-3 py-1.5 rounded-lg border border-[#222] hover:border-[#444] transition-colors">
+                📐 Rooms
               </button>
               <button onClick={onSettings} className="text-[#A7A5A6] hover:text-white text-xs px-3 py-1.5 rounded-lg border border-[#222] hover:border-[#444] transition-colors">
                 ⚙ Settings

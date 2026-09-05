@@ -6,6 +6,8 @@ import JobEditor from './components/JobEditor';
 import { CustomerDatabase } from './components/CustomerDB';
 import SettingsPage from './components/SettingsPage';
 import LoginScreen from './components/LoginScreen';
+import CalendarView from './components/CalendarView';
+import RoomCalculator from './components/RoomCalculator';
 import { handleQBCallback, setQBTokens } from './utils/quickbooks';
 import { supabase } from './utils/supabase';
 
@@ -157,6 +159,22 @@ export default function App() {
           onBack={() => setView('dashboard')}
         />
       )}
+      {view === 'calendar' && (
+        <div className="min-h-screen bg-black">
+          <div className="bg-[#0a0a0a] border-b border-[#1a1a1a] px-4 py-3 flex items-center gap-3">
+            <button onClick={() => setView('dashboard')} className="text-[#555] hover:text-[#f59e0b] text-sm transition-colors">← Dashboard</button>
+          </div>
+          <CalendarView jobs={store.jobs} />
+        </div>
+      )}
+      {view === 'calculator' && (
+        <div className="min-h-screen bg-black">
+          <div className="bg-[#0a0a0a] border-b border-[#1a1a1a] px-4 py-3 flex items-center gap-3">
+            <button onClick={() => setView('dashboard')} className="text-[#555] hover:text-[#f59e0b] text-sm transition-colors">← Dashboard</button>
+          </div>
+          <RoomCalculator />
+        </div>
+      )}
       {(view === 'dashboard' || (view === 'job' && !job)) && (
         <Dashboard
           jobs={store.jobs}
@@ -168,6 +186,8 @@ export default function App() {
           onDuplicateJob={handleDuplicate}
           onCustomers={() => setView('customers')}
           onSettings={() => setView('settings')}
+          onCalendar={() => setView('calendar')}
+          onCalculator={() => setView('calculator')}
           syncStatus={store.syncStatus}
           syncError={store.syncError}
           onRestoreBackup={store.restoreBackup}

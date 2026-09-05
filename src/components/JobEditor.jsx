@@ -926,49 +926,83 @@ export default function JobEditor({ job, customers, settings, onUpdate, onBack, 
                     ))}
                   </div>
                 )}
-                {/* Add photo button */}
-                <label className="block w-full border-2 border-dashed border-[#1a1a1a] hover:border-[#f59e0b]/40 rounded-xl py-4 text-center cursor-pointer transition-colors">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    capture="environment"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const files = Array.from(e.target.files || []);
-                      const compressImage = (file) => new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onload = (ev) => {
-                          const img = new Image();
-                          img.onload = () => {
-                            const MAX = 1200;
-                            let { width, height } = img;
-                            if (width > MAX || height > MAX) {
-                              if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
-                              else { width = Math.round(width * MAX / height); height = MAX; }
-                            }
-                            const canvas = document.createElement('canvas');
-                            canvas.width = width; canvas.height = height;
-                            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-                            resolve({
-                              dataUrl: canvas.toDataURL('image/jpeg', 0.75),
-                              caption: '',
-                              addedAt: new Date().toISOString(),
-                              fileName: file.name,
-                            });
+                {/* Add photo buttons */}
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Take photo with camera */}
+                  <label className="block border-2 border-dashed border-[#1a1a1a] hover:border-[#f59e0b]/40 rounded-xl py-4 text-center cursor-pointer transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const files = Array.from(e.target.files || []);
+                        const compressImage = (file) => new Promise((resolve) => {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const img = new Image();
+                            img.onload = () => {
+                              const MAX = 1200;
+                              let { width, height } = img;
+                              if (width > MAX || height > MAX) {
+                                if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+                                else { width = Math.round(width * MAX / height); height = MAX; }
+                              }
+                              const canvas = document.createElement('canvas');
+                              canvas.width = width; canvas.height = height;
+                              canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                              resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.75), caption: '', addedAt: new Date().toISOString(), fileName: file.name });
+                            };
+                            img.src = ev.target.result;
                           };
-                          img.src = ev.target.result;
-                        };
-                        reader.readAsDataURL(file);
-                      });
-                      const newPhotos = await Promise.all(files.map(compressImage));
-                      upd({ photos: [...(job.photos || []), ...newPhotos] });
-                      e.target.value = '';
-                    }}
-                  />
-                  <span className="text-[#444] text-sm">📷 Tap to add photos</span>
-                  <p className="text-xs text-[#333] mt-1">Panel, site conditions, before/after</p>
-                </label>
+                          reader.readAsDataURL(file);
+                        });
+                        const newPhotos = await Promise.all(files.map(compressImage));
+                        upd({ photos: [...(job.photos || []), ...newPhotos] });
+                        e.target.value = '';
+                      }}
+                    />
+                    <span className="text-2xl block mb-1">📷</span>
+                    <span className="text-[#444] text-xs">Take Photo</span>
+                  </label>
+                  {/* Choose from library */}
+                  <label className="block border-2 border-dashed border-[#1a1a1a] hover:border-[#f59e0b]/40 rounded-xl py-4 text-center cursor-pointer transition-colors">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={async (e) => {
+                        const files = Array.from(e.target.files || []);
+                        const compressImage = (file) => new Promise((resolve) => {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const img = new Image();
+                            img.onload = () => {
+                              const MAX = 1200;
+                              let { width, height } = img;
+                              if (width > MAX || height > MAX) {
+                                if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+                                else { width = Math.round(width * MAX / height); height = MAX; }
+                              }
+                              const canvas = document.createElement('canvas');
+                              canvas.width = width; canvas.height = height;
+                              canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                              resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.75), caption: '', addedAt: new Date().toISOString(), fileName: file.name });
+                            };
+                            img.src = ev.target.result;
+                          };
+                          reader.readAsDataURL(file);
+                        });
+                        const newPhotos = await Promise.all(files.map(compressImage));
+                        upd({ photos: [...(job.photos || []), ...newPhotos] });
+                        e.target.value = '';
+                      }}
+                    />
+                    <span className="text-2xl block mb-1">🖼️</span>
+                    <span className="text-[#444] text-xs">Choose from Library</span>
+                  </label>
+                </div>
               </div>
             </section>
           </div>
