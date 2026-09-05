@@ -164,7 +164,7 @@ export default function App() {
           <div className="bg-[#0a0a0a] border-b border-[#1a1a1a] px-4 py-3 flex items-center gap-3">
             <button onClick={() => setView('dashboard')} className="text-[#555] hover:text-[#f59e0b] text-sm transition-colors">← Dashboard</button>
           </div>
-          <CalendarView jobs={store.jobs} />
+          <CalendarView jobs={store.jobs} settings={store.settings} />
         </div>
       )}
       {view === 'calculator' && (

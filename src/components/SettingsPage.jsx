@@ -61,6 +61,7 @@ export default function SettingsPage({ settings, onSave, onBack }) {
     { id: 'logo', label: 'Logo' },
     { id: 'pricing', label: 'Pricing' },
     { id: 'quickbooks', label: 'QuickBooks' },
+    { id: 'calendar', label: 'Calendar' },
   ];
 
   return (
@@ -253,6 +254,42 @@ export default function SettingsPage({ settings, onSave, onBack }) {
                 ))}
               </div>
               <p className="text-xs text-[#333] mt-2">Start with Sandbox to test — use your sandbox QB credentials from developer.intuit.com</p>
+            </div>
+          </div>
+        )}
+
+        {/* ── CALENDAR TAB ── */}
+        {activeTab === 'calendar' && (
+          <div className="space-y-5">
+            <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-xl p-4 space-y-3">
+              <SectionLabel>Google Calendar — Secret ICS Feed</SectionLabel>
+              <p className="text-xs text-[#555] leading-relaxed">
+                Your secret ICS URL is stored securely in your database — never in code or GitHub.
+                Only logged-in users can access it.
+              </p>
+              <div className="bg-[#111] border border-[#1a1a1a] rounded-lg p-3 space-y-1.5">
+                <p className="text-xs text-[#A7A5A6] font-semibold">How to get your secret URL:</p>
+                <ol className="text-xs text-[#555] space-y-1 list-decimal list-inside">
+                  <li>Go to <span className="text-[#A7A5A6]">calendar.google.com</span></li>
+                  <li>Find your calendar → three dots ⋮ → Settings and sharing</li>
+                  <li>Scroll to <span className="text-[#A7A5A6]">Integrate calendar</span></li>
+                  <li>Copy <span className="text-[#A7A5A6]">"Secret address in iCal format"</span></li>
+                  <li>Paste it below and save</li>
+                </ol>
+              </div>
+              <Input
+                label="Secret ICS URL"
+                value={local.calendarIcsUrl || ''}
+                onChange={v => upd('calendarIcsUrl', v)}
+                placeholder="https://calendar.google.com/calendar/ical/.../private-.../basic.ics"
+                hint="Paste your secret address in iCal format here"
+              />
+              {local.calendarIcsUrl && (
+                <div className="flex items-center gap-2 text-xs text-green-400">
+                  <span className="w-2 h-2 bg-green-400 rounded-full" />
+                  Calendar URL saved — events will load in the Schedule tab
+                </div>
+              )}
             </div>
           </div>
         )}
