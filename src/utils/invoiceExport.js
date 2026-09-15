@@ -1,7 +1,7 @@
 import { calcJobTotals, formatCurrency, formatHours } from './pricing';
 import { JOB_TYPES } from '../data/jobTypes';
 
-export function generateInvoicePDF(job, settings, invoice) {
+export function generateInvoicePDF(job, settings, invoice, mode = 'summary') {
   const totals = calcJobTotals(job, settings);
   const companyName = settings.companyName || 'Saybrook Electric, LLC.';
   const laborRate = settings.laborRate || 95;
@@ -28,13 +28,26 @@ export function generateInvoicePDF(job, settings, invoice) {
     ? (job.scopes || []).map(s => JOB_TYPES.find(t => t.id === s.jobType)?.label || s.title).join(' + ')
     : jobType);
 
-  const lineRows = allLineDetails.filter(li => (li.qty || 0) > 0).map((li, i) => `
+  // Itemized — full line items with qty, unit, amount
+  const itemizedRows = allLineDetails.filter(li => (li.qty || 0) > 0).map((li, i) => `
     <tr style="background:${i % 2 === 0 ? '#fafafa' : 'white'}">
       <td style="padding:8px 10px;border-bottom:1px solid #eee;">${li.name}</td>
       <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center;">${li.qty}</td>
       <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:center;">${li.unit || 'each'}</td>
       <td style="padding:8px 10px;border-bottom:1px solid #eee;text-align:right;">${formatCurrency(li.subtotal)}</td>
     </tr>`).join('');
+
+  // Summary — just service description, no prices on line items
+  const summaryRows = allLineDetails.filter(li => (li.qty || 0) > 0).map((li, i) => `
+    <tr style="background:${i % 2 === 0 ? '#fafafa' : 'white'}">
+      <td style="padding:8px 10px;border-bottom:1px solid #eee;">${li.name}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid #eee;color:#888;">${li.qty} ${li.unit || 'each'}</td>
+    </tr>`).join('');
+
+  const lineRows = mode === 'itemized' ? itemizedRows : summaryRows;
+  const tableHeader = mode === 'itemized'
+    ? `<tr><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:center">Unit</th><th style="text-align:right">Amount</th></tr>`
+    : `<tr><th>Description</th><th>Qty</th></tr>`;
 
   const html = `<!DOCTYPE html>
 <html>
@@ -123,17 +136,19 @@ ${invoice.paid ? '<div class="paid-stamp"><span>PAID</span></div>' : ''}
 
 <div class="section-title">Services Rendered</div>
 <table>
-  <thead><tr><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:center">Unit</th><th style="text-align:right">Amount</th></tr></thead>
+  <thead>${tableHeader}</thead>
   <tbody>${lineRows}</tbody>
 </table>
 
 <table class="totals">
   <tbody>
-    <tr><td>Material</td><td>${formatCurrency(totals.totalMaterial)}</td></tr>
-    <tr><td>Labor (${formatHours(totals.totalLaborHrs)} @ $${laborRate}/hr)</td><td>${formatCurrency(totals.totalLaborCost)}</td></tr>
-    ${totals.totalAllIn > 0 ? `<tr><td>Other Items</td><td>${formatCurrency(totals.totalAllIn)}</td></tr>` : ''}
-    <tr><td style="border-top:2px solid #eee;padding-top:10px">Subtotal</td><td style="border-top:2px solid #eee;padding-top:10px">${formatCurrency(totals.subtotal)}</td></tr>
-    <tr><td>Overhead & Profit (${totals.markupPct}%)</td><td>${formatCurrency(totals.markupAmt)}</td></tr>
+    ${mode === 'itemized' ? `
+    <tr><td style="color:#555">Material</td><td>${formatCurrency(totals.totalMaterial)}</td></tr>
+    <tr><td style="color:#555">Labor (${formatHours(totals.totalLaborHrs)} @ $${laborRate}/hr)</td><td>${formatCurrency(totals.totalLaborCost)}</td></tr>
+    ${totals.totalAllIn > 0 ? `<tr><td style="color:#555">Other Items</td><td>${formatCurrency(totals.totalAllIn)}</td></tr>` : ''}
+    <tr><td style="border-top:2px solid #eee;padding-top:10px;color:#555">Subtotal</td><td style="border-top:2px solid #eee;padding-top:10px">${formatCurrency(totals.subtotal)}</td></tr>
+    <tr><td style="color:#555">Overhead & Profit (${totals.markupPct}%)</td><td>${formatCurrency(totals.markupAmt)}</td></tr>
+    ` : ''}
     <tr style="font-weight:700"><td>Invoice Total</td><td>${formatCurrency(totals.grandTotal)}</td></tr>
     ${discount > 0 ? `<tr><td style="color:#e53e3e">Discount (${discount}%)</td><td style="color:#e53e3e">-${formatCurrency(discountAmt)}</td></tr>
     <tr style="font-weight:700"><td>After Discount</td><td>${formatCurrency(invoiceTotal)}</td></tr>` : ''}

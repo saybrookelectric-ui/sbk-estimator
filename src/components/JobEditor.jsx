@@ -473,12 +473,32 @@ function InvoicePanel({ job, totals, settings, onUpdate, claimInvoiceNumber }) {
 
         {/* Actions */}
         <div className="space-y-2">
+          {/* Invoice format toggle */}
+          <div>
+            <p className="text-xs text-[#555] font-semibold uppercase tracking-wider mb-1.5">Invoice Format</p>
+            <div className="flex gap-2">
+              {[{ id: 'summary', label: 'Summary' }, { id: 'itemized', label: 'Itemized' }].map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => onUpdate({ invoiceDisplayMode: m.id })}
+                  className={`flex-1 text-sm px-3 py-2 rounded-lg border transition-colors ${
+                    (job.invoiceDisplayMode || 'summary') === m.id
+                      ? 'border-[#dc2626] bg-[#dc2626]/10 text-[#dc2626]'
+                      : 'border-[#222] text-[#555] hover:border-[#333]'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Print invoice PDF */}
           <button
-            onClick={() => generateInvoicePDF(job, settings, invoice)}
+            onClick={() => generateInvoicePDF(job, settings, invoice, job.invoiceDisplayMode || 'summary')}
             className="w-full bg-[#dc2626] hover:bg-[#b91c1c] text-white font-bold py-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-2"
           >
-            📄 Print / Email Invoice PDF
+            📄 Print / Email Invoice PDF ({job.invoiceDisplayMode || 'summary'})
           </button>
 
           {/* Email pre-fill */}
