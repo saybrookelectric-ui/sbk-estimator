@@ -224,4 +224,5 @@ export const DEFAULT_SETTINGS = {
   nextInvoiceNumber: 2000,
   invoicePrefix: 'INV-',
   invoiceTermsDays: 30,
+  estimateDisclosure: 'This is an estimate, not a fixed-price contract. Final pricing may change due to unforeseen conditions discovered during the work (such as hidden damage, code violations, or concealed wiring) or fluctuations in material costs. Any changes to the scope or price will be discussed with you and approved before additional work is performed. This estimate is valid for 30 days.',
 };

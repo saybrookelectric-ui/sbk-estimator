@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Input, SectionLabel, YellowBtn, GhostBtn } from './UI';
+import { Input, Textarea, SectionLabel, YellowBtn, GhostBtn } from './UI';
 import { startQBAuth, isQBConnected, hasRefreshToken, clearQBTokens, getQBTokens } from '../utils/quickbooks';
 
 export default function SettingsPage({ settings, onSave, onBack }) {
@@ -154,6 +154,17 @@ export default function SettingsPage({ settings, onSave, onBack }) {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <SectionLabel>Estimate Disclosure</SectionLabel>
+              <Textarea
+                label="Disclosure Statement (printed on every estimate PDF)"
+                value={local.estimateDisclosure || ''}
+                onChange={v => upd('estimateDisclosure', v)}
+                rows={4}
+                placeholder="Enter disclosure text to appear at the bottom of every estimate..."
+              />
             </div>
           </div>
         )}

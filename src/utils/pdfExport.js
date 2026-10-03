@@ -210,9 +210,11 @@ ${isMultiScope && mode === 'itemized'
 
 ${totalsTable}
 
-<p class="validity">This estimate is valid for 30 days from the date above. All work performed to NEC 2023 standards and applicable local codes. Permit fees included where noted.</p>
+
 
 ${job.notes ? `<div class="notes-box"><strong>Notes:</strong> ${job.notes}</div>` : ''}
+
+${settings.estimateDisclosure ? `<div style="margin-top:16px;padding:10px 14px;border:1px solid #e5e7eb;border-radius:4px;font-size:10px;color:#6b7280;line-height:1.5;"><strong style="color:#374151;">Disclosure:</strong> ${settings.estimateDisclosure}</div>` : ''}
 
 ${signatureBlock}
 
