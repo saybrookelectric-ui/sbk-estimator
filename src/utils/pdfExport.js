@@ -238,49 +238,72 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
     window.matchMedia('(display-mode: standalone)').matches;
 
   if (isIOS || isStandalone) {
-    // Use a Blob URL so Safari's Share Sheet can offer "Save to Files" / AirDrop.
-    // srcdoc iframes lost that capability in iOS 17+ security hardening.
-    const blob = new Blob([html], { type: 'text/html' });
-    const blobUrl = URL.createObjectURL(blob);
+    // iOS 27 blocks window.print() and iframe.contentWindow.print() from iframes.
+    // Solution: inject the estimate HTML directly into the parent document inside
+    // a full-screen overlay div, hide the app, then call window.print() normally.
+    // @media print CSS hides the overlay chrome and prints only the content.
 
     let overlay = document.getElementById('sbk-pdf-overlay');
     if (overlay) overlay.remove();
 
+    // Parse the built HTML and extract just the body content + styles
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const bodyHTML = doc.body.innerHTML;
+    const styleHTML = Array.from(doc.querySelectorAll('style')).map(s => s.outerHTML).join('');
+
     overlay = document.createElement('div');
     overlay.id = 'sbk-pdf-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:white;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:white;overflow-y:auto;padding:40px 40px 80px;';
+    overlay.innerHTML = styleHTML + bodyHTML;
 
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'width:100%;height:100%;border:none;';
-    iframe.src = blobUrl;
+    // Remove the back/print buttons that were baked into the HTML
+    overlay.querySelectorAll('.back-btn, .print-btn').forEach(el => el.remove());
 
-    // iOS 27: window.print() inside an iframe is blocked. Listen for the
-    // postMessage from the print button and call print() on the iframe's
-    // contentWindow from the parent instead.
-    const printHandler = (e) => {
-      if (e.data === 'sbk-print') {
-        try { iframe.contentWindow.print(); } catch(_) { window.print(); }
-      }
-    };
-    window.addEventListener('message', printHandler);
-
-    overlay.appendChild(iframe);
     document.body.appendChild(overlay);
 
-    const backBtn = document.createElement('button');
-    backBtn.textContent = '← Back to Estimator';
-    backBtn.style.cssText = `
-      position:fixed;top:12px;left:12px;z-index:10000;
-      background:#f59e0b;color:#000;font-weight:900;font-size:13px;
-      border:none;border-radius:8px;padding:8px 16px;cursor:pointer;
-      box-shadow:0 2px 8px rgba(0,0,0,0.4);`;
-    backBtn.onclick = () => {
-      window.removeEventListener('message', printHandler);
+    // Inject print styles: hide everything except the overlay content
+    const printStyle = document.createElement('style');
+    printStyle.id = 'sbk-print-style';
+    printStyle.textContent = `
+      @media print {
+        body > *:not(#sbk-pdf-overlay):not(#sbk-pdf-toolbar) { display:none !important; }
+        #sbk-pdf-overlay { position:static !important; padding:20px !important; overflow:visible !important; }
+        #sbk-pdf-toolbar { display:none !important; }
+      }`;
+    document.head.appendChild(printStyle);
+
+    const cleanup = () => {
       overlay.remove();
-      backBtn.remove();
-      URL.revokeObjectURL(blobUrl);
+      toolbar.remove();
+      printStyle.remove();
     };
-    document.body.appendChild(backBtn);
+
+    // Toolbar with Back + Print buttons rendered in the parent page
+    const toolbar = document.createElement('div');
+    toolbar.id = 'sbk-pdf-toolbar';
+    toolbar.style.cssText = `
+      position:fixed;bottom:0;left:0;right:0;z-index:9999;
+      background:#111;padding:12px 16px;display:flex;gap:12px;
+      box-shadow:0 -2px 12px rgba(0,0,0,0.4);`;
+
+    const backBtn = document.createElement('button');
+    backBtn.textContent = '← Back';
+    backBtn.style.cssText = `
+      flex:1;background:#333;color:#fff;font-weight:700;font-size:15px;
+      border:none;border-radius:10px;padding:14px;cursor:pointer;`;
+    backBtn.onclick = cleanup;
+
+    const printBtn = document.createElement('button');
+    printBtn.textContent = '🖨 Print / Save PDF';
+    printBtn.style.cssText = `
+      flex:2;background:#f59e0b;color:#000;font-weight:900;font-size:15px;
+      border:none;border-radius:10px;padding:14px;cursor:pointer;`;
+    printBtn.onclick = () => window.print();
+
+    toolbar.appendChild(backBtn);
+    toolbar.appendChild(printBtn);
+    document.body.appendChild(toolbar);
   } else {
     // Desktop / Android: open new tab and trigger print dialog
     const win = window.open('', '_blank');
