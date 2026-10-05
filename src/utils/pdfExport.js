@@ -166,7 +166,7 @@ function buildHTML(job, settings, mode, totals) {
 </head>
 <body>
 <button class="back-btn" onclick="window.close()">← Back</button>
-<button class="print-btn" onclick="window.print()">🖨 Print / Save PDF</button>
+<button class="print-btn" onclick="window.parent.postMessage('sbk-print','*');window.print();">🖨 Print / Save PDF</button>
 
 <div class="header">
   <div class="co">
@@ -254,6 +254,16 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
     iframe.style.cssText = 'width:100%;height:100%;border:none;';
     iframe.src = blobUrl;
 
+    // iOS 27: window.print() inside an iframe is blocked. Listen for the
+    // postMessage from the print button and call print() on the iframe's
+    // contentWindow from the parent instead.
+    const printHandler = (e) => {
+      if (e.data === 'sbk-print') {
+        try { iframe.contentWindow.print(); } catch(_) { window.print(); }
+      }
+    };
+    window.addEventListener('message', printHandler);
+
     overlay.appendChild(iframe);
     document.body.appendChild(overlay);
 
@@ -265,6 +275,7 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
       border:none;border-radius:8px;padding:8px 16px;cursor:pointer;
       box-shadow:0 2px 8px rgba(0,0,0,0.4);`;
     backBtn.onclick = () => {
+      window.removeEventListener('message', printHandler);
       overlay.remove();
       backBtn.remove();
       URL.revokeObjectURL(blobUrl);
