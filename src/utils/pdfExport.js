@@ -238,38 +238,84 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
     window.matchMedia('(display-mode: standalone)').matches;
 
   if (isIOS || isStandalone) {
-    // iOS 27 fully blocks window.print() in standalone PWA mode.
-    // Fix: open the estimate as a blob URL in a new Safari tab (outside the PWA).
-    // Safari tabs have the full address bar with the native Share button,
-    // which offers Print (AirPrint), Save to Files, AirDrop, Mail, etc.
+    // iOS 27 blocks window.print() entirely in standalone PWA mode.
+    // Use the Web Share API with a File object — this triggers the native
+    // iOS share sheet which includes Print (AirPrint), Save to Files, AirDrop, Mail.
+    // Must be called synchronously from a user gesture (button tap).
+
+    const customerName = (job.customerName || 'Customer').replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '-');
+    const fileName = `Estimate-${customerName}.pdf`;
+
+    // Try Web Share API with file (iOS 15+, works in PWA standalone)
+    const shareFile = async () => {
+      const blob = new Blob([html], { type: 'text/html' });
+      // Share as .html — iOS will offer it to Files, Mail, etc.
+      // Name it .html so it opens correctly; user can rename when saving
+      const file = new File([blob], fileName.replace('.pdf', '.html'), { type: 'text/html' });
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: `Estimate — ${job.customerName || 'Customer'}`,
+            files: [file],
+          });
+          return;
+        } catch (e) {
+          if (e.name === 'AbortError') return; // user cancelled
+        }
+      }
+
+      // Fallback: show overlay with instructions to use the share button
+      let overlay = document.getElementById('sbk-pdf-overlay');
+      if (overlay) overlay.remove();
+      overlay = document.createElement('div');
+      overlay.id = 'sbk-pdf-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:20px;';
+      overlay.innerHTML = `
+        <p style="color:#f59e0b;font-size:20px;font-weight:900;text-align:center;">Share Not Available</p>
+        <p style="color:#ccc;font-size:14px;text-align:center;line-height:1.6;">Your device doesn't support direct file sharing from this app. Please try opening the estimate from Safari (not the home screen app) to use Print / Save to Files.</p>`;
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = '← Back';
+      closeBtn.style.cssText = 'background:#333;color:#fff;font-weight:700;font-size:15px;border:none;border-radius:10px;padding:14px 24px;cursor:pointer;';
+      closeBtn.onclick = () => overlay.remove();
+      overlay.appendChild(closeBtn);
+      document.body.appendChild(overlay);
+    };
+
+    // Show preview overlay first, with a Share/Save button
     const blob = new Blob([html], { type: 'text/html' });
     const blobUrl = URL.createObjectURL(blob);
 
-    // window.open() from a PWA opens in Safari, not the PWA window.
-    // Revoke the blob URL after a short delay to free memory.
-    const newTab = window.open(blobUrl, '_blank');
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+    let overlay = document.getElementById('sbk-pdf-overlay');
+    if (overlay) overlay.remove();
+    overlay = document.createElement('div');
+    overlay.id = 'sbk-pdf-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:white;';
 
-    if (!newTab) {
-      // Pop-ups blocked — fall back to overlay with instructions
-      let overlay = document.getElementById('sbk-pdf-overlay');
-      if (overlay) overlay.remove();
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'width:100%;height:100%;border:none;';
+    iframe.src = blobUrl;
+    overlay.appendChild(iframe);
+    document.body.appendChild(overlay);
 
-      overlay = document.createElement('div');
-      overlay.id = 'sbk-pdf-overlay';
-      overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px;';
-      overlay.innerHTML = `
-        <p style="color:#f59e0b;font-size:18px;font-weight:900;text-align:center;">Pop-ups Blocked</p>
-        <p style="color:#ccc;font-size:14px;text-align:center;line-height:1.5;">Safari blocked the estimate from opening. Tap the link below to open it manually, then use the Share button to save as PDF.</p>
-        <a href="${blobUrl}" target="_blank" style="background:#f59e0b;color:#000;font-weight:900;font-size:15px;border-radius:10px;padding:14px 24px;text-decoration:none;">Open Estimate →</a>`;
+    const toolbar = document.createElement('div');
+    toolbar.style.cssText = `position:fixed;bottom:0;left:0;right:0;z-index:9999;
+      background:#111;padding:12px 16px;display:flex;gap:12px;
+      box-shadow:0 -2px 12px rgba(0,0,0,0.5);`;
 
-      const backBtn = document.createElement('button');
-      backBtn.textContent = '← Back';
-      backBtn.style.cssText = `background:#333;color:#fff;font-weight:700;font-size:15px;border:none;border-radius:10px;padding:14px 24px;cursor:pointer;`;
-      backBtn.onclick = () => { overlay.remove(); URL.revokeObjectURL(blobUrl); };
-      overlay.appendChild(backBtn);
-      document.body.appendChild(overlay);
-    }
+    const backBtn = document.createElement('button');
+    backBtn.textContent = '← Back';
+    backBtn.style.cssText = 'flex:1;background:#333;color:#fff;font-weight:700;font-size:15px;border:none;border-radius:10px;padding:14px;cursor:pointer;';
+    backBtn.onclick = () => { overlay.remove(); toolbar.remove(); URL.revokeObjectURL(blobUrl); };
+
+    const shareBtn = document.createElement('button');
+    shareBtn.textContent = '⬆ Save / Share PDF';
+    shareBtn.style.cssText = 'flex:2;background:#f59e0b;color:#000;font-weight:900;font-size:15px;border:none;border-radius:10px;padding:14px;cursor:pointer;';
+    shareBtn.onclick = shareFile;
+
+    toolbar.appendChild(backBtn);
+    toolbar.appendChild(shareBtn);
+    document.body.appendChild(toolbar);
   } else {
     // Desktop / Android: open new tab and trigger print dialog
     const win = window.open('', '_blank');
