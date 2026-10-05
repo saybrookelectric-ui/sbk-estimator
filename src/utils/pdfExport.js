@@ -238,7 +238,11 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
     window.matchMedia('(display-mode: standalone)').matches;
 
   if (isIOS || isStandalone) {
-    // Inject an iframe overlay into the current page
+    // Use a Blob URL so Safari's Share Sheet can offer "Save to Files" / AirDrop.
+    // srcdoc iframes lost that capability in iOS 17+ security hardening.
+    const blob = new Blob([html], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(blob);
+
     let overlay = document.getElementById('sbk-pdf-overlay');
     if (overlay) overlay.remove();
 
@@ -248,14 +252,11 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
 
     const iframe = document.createElement('iframe');
     iframe.style.cssText = 'width:100%;height:100%;border:none;';
-    iframe.srcdoc = html;
+    iframe.src = blobUrl;
 
     overlay.appendChild(iframe);
     document.body.appendChild(overlay);
 
-    // The "← Back" button inside the iframe calls window.close() which won't work
-    // in an iframe — so we listen for a message from inside, or just add our own
-    // back button outside the iframe as a fallback
     const backBtn = document.createElement('button');
     backBtn.textContent = '← Back to Estimator';
     backBtn.style.cssText = `
@@ -263,10 +264,14 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
       background:#f59e0b;color:#000;font-weight:900;font-size:13px;
       border:none;border-radius:8px;padding:8px 16px;cursor:pointer;
       box-shadow:0 2px 8px rgba(0,0,0,0.4);`;
-    backBtn.onclick = () => { overlay.remove(); backBtn.remove(); };
+    backBtn.onclick = () => {
+      overlay.remove();
+      backBtn.remove();
+      URL.revokeObjectURL(blobUrl);
+    };
     document.body.appendChild(backBtn);
   } else {
-    // Desktop / Android: open new tab as before
+    // Desktop / Android: open new tab and trigger print dialog
     const win = window.open('', '_blank');
     if (win) {
       win.document.write(html);
