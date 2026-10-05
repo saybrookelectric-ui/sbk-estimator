@@ -238,72 +238,38 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
     window.matchMedia('(display-mode: standalone)').matches;
 
   if (isIOS || isStandalone) {
-    // iOS 27 blocks window.print() and iframe.contentWindow.print() from iframes.
-    // Solution: inject the estimate HTML directly into the parent document inside
-    // a full-screen overlay div, hide the app, then call window.print() normally.
-    // @media print CSS hides the overlay chrome and prints only the content.
+    // iOS 27 fully blocks window.print() in standalone PWA mode.
+    // Fix: open the estimate as a blob URL in a new Safari tab (outside the PWA).
+    // Safari tabs have the full address bar with the native Share button,
+    // which offers Print (AirPrint), Save to Files, AirDrop, Mail, etc.
+    const blob = new Blob([html], { type: 'text/html' });
+    const blobUrl = URL.createObjectURL(blob);
 
-    let overlay = document.getElementById('sbk-pdf-overlay');
-    if (overlay) overlay.remove();
+    // window.open() from a PWA opens in Safari, not the PWA window.
+    // Revoke the blob URL after a short delay to free memory.
+    const newTab = window.open(blobUrl, '_blank');
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
 
-    // Parse the built HTML and extract just the body content + styles
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const bodyHTML = doc.body.innerHTML;
-    const styleHTML = Array.from(doc.querySelectorAll('style')).map(s => s.outerHTML).join('');
+    if (!newTab) {
+      // Pop-ups blocked — fall back to overlay with instructions
+      let overlay = document.getElementById('sbk-pdf-overlay');
+      if (overlay) overlay.remove();
 
-    overlay = document.createElement('div');
-    overlay.id = 'sbk-pdf-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:white;overflow-y:auto;padding:40px 40px 80px;';
-    overlay.innerHTML = styleHTML + bodyHTML;
+      overlay = document.createElement('div');
+      overlay.id = 'sbk-pdf-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:16px;';
+      overlay.innerHTML = `
+        <p style="color:#f59e0b;font-size:18px;font-weight:900;text-align:center;">Pop-ups Blocked</p>
+        <p style="color:#ccc;font-size:14px;text-align:center;line-height:1.5;">Safari blocked the estimate from opening. Tap the link below to open it manually, then use the Share button to save as PDF.</p>
+        <a href="${blobUrl}" target="_blank" style="background:#f59e0b;color:#000;font-weight:900;font-size:15px;border-radius:10px;padding:14px 24px;text-decoration:none;">Open Estimate →</a>`;
 
-    // Remove the back/print buttons that were baked into the HTML
-    overlay.querySelectorAll('.back-btn, .print-btn').forEach(el => el.remove());
-
-    document.body.appendChild(overlay);
-
-    // Inject print styles: hide everything except the overlay content
-    const printStyle = document.createElement('style');
-    printStyle.id = 'sbk-print-style';
-    printStyle.textContent = `
-      @media print {
-        body > *:not(#sbk-pdf-overlay):not(#sbk-pdf-toolbar) { display:none !important; }
-        #sbk-pdf-overlay { position:static !important; padding:20px !important; overflow:visible !important; }
-        #sbk-pdf-toolbar { display:none !important; }
-      }`;
-    document.head.appendChild(printStyle);
-
-    const cleanup = () => {
-      overlay.remove();
-      toolbar.remove();
-      printStyle.remove();
-    };
-
-    // Toolbar with Back + Print buttons rendered in the parent page
-    const toolbar = document.createElement('div');
-    toolbar.id = 'sbk-pdf-toolbar';
-    toolbar.style.cssText = `
-      position:fixed;bottom:0;left:0;right:0;z-index:9999;
-      background:#111;padding:12px 16px;display:flex;gap:12px;
-      box-shadow:0 -2px 12px rgba(0,0,0,0.4);`;
-
-    const backBtn = document.createElement('button');
-    backBtn.textContent = '← Back';
-    backBtn.style.cssText = `
-      flex:1;background:#333;color:#fff;font-weight:700;font-size:15px;
-      border:none;border-radius:10px;padding:14px;cursor:pointer;`;
-    backBtn.onclick = cleanup;
-
-    const printBtn = document.createElement('button');
-    printBtn.textContent = '🖨 Print / Save PDF';
-    printBtn.style.cssText = `
-      flex:2;background:#f59e0b;color:#000;font-weight:900;font-size:15px;
-      border:none;border-radius:10px;padding:14px;cursor:pointer;`;
-    printBtn.onclick = () => window.print();
-
-    toolbar.appendChild(backBtn);
-    toolbar.appendChild(printBtn);
-    document.body.appendChild(toolbar);
+      const backBtn = document.createElement('button');
+      backBtn.textContent = '← Back';
+      backBtn.style.cssText = `background:#333;color:#fff;font-weight:700;font-size:15px;border:none;border-radius:10px;padding:14px 24px;cursor:pointer;`;
+      backBtn.onclick = () => { overlay.remove(); URL.revokeObjectURL(blobUrl); };
+      overlay.appendChild(backBtn);
+      document.body.appendChild(overlay);
+    }
   } else {
     // Desktop / Android: open new tab and trigger print dialog
     const win = window.open('', '_blank');
