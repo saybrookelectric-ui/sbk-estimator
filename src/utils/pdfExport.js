@@ -238,51 +238,13 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
     window.matchMedia('(display-mode: standalone)').matches;
 
   if (isIOS || isStandalone) {
-    // iOS 27 blocks window.print() entirely in standalone PWA mode.
-    // Use the Web Share API with a File object — this triggers the native
-    // iOS share sheet which includes Print (AirPrint), Save to Files, AirDrop, Mail.
-    // Must be called synchronously from a user gesture (button tap).
+    // iOS 27 PWA: window.print() is fully blocked. Generate a real PDF using
+    // html2canvas + jsPDF, then share via Web Share API (Save to Files, AirDrop, Mail).
 
     const customerName = (job.customerName || 'Customer').replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '-');
     const fileName = `Estimate-${customerName}.pdf`;
 
-    // Try Web Share API with file (iOS 15+, works in PWA standalone)
-    const shareFile = async () => {
-      const blob = new Blob([html], { type: 'text/html' });
-      // Share as .html — iOS will offer it to Files, Mail, etc.
-      // Name it .html so it opens correctly; user can rename when saving
-      const file = new File([blob], fileName.replace('.pdf', '.html'), { type: 'text/html' });
-
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            title: `Estimate — ${job.customerName || 'Customer'}`,
-            files: [file],
-          });
-          return;
-        } catch (e) {
-          if (e.name === 'AbortError') return; // user cancelled
-        }
-      }
-
-      // Fallback: show overlay with instructions to use the share button
-      let overlay = document.getElementById('sbk-pdf-overlay');
-      if (overlay) overlay.remove();
-      overlay = document.createElement('div');
-      overlay.id = 'sbk-pdf-overlay';
-      overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;gap:20px;';
-      overlay.innerHTML = `
-        <p style="color:#f59e0b;font-size:20px;font-weight:900;text-align:center;">Share Not Available</p>
-        <p style="color:#ccc;font-size:14px;text-align:center;line-height:1.6;">Your device doesn't support direct file sharing from this app. Please try opening the estimate from Safari (not the home screen app) to use Print / Save to Files.</p>`;
-      const closeBtn = document.createElement('button');
-      closeBtn.textContent = '← Back';
-      closeBtn.style.cssText = 'background:#333;color:#fff;font-weight:700;font-size:15px;border:none;border-radius:10px;padding:14px 24px;cursor:pointer;';
-      closeBtn.onclick = () => overlay.remove();
-      overlay.appendChild(closeBtn);
-      document.body.appendChild(overlay);
-    };
-
-    // Show preview overlay first, with a Share/Save button
+    // Show preview overlay with a toolbar
     const blob = new Blob([html], { type: 'text/html' });
     const blobUrl = URL.createObjectURL(blob);
 
@@ -299,22 +261,84 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
     document.body.appendChild(overlay);
 
     const toolbar = document.createElement('div');
-    toolbar.style.cssText = `position:fixed;bottom:0;left:0;right:0;z-index:9999;
-      background:#111;padding:12px 16px;display:flex;gap:12px;
-      box-shadow:0 -2px 12px rgba(0,0,0,0.5);`;
+    toolbar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#111;padding:12px 16px;display:flex;gap:12px;box-shadow:0 -2px 12px rgba(0,0,0,0.5);';
 
     const backBtn = document.createElement('button');
     backBtn.textContent = '← Back';
     backBtn.style.cssText = 'flex:1;background:#333;color:#fff;font-weight:700;font-size:15px;border:none;border-radius:10px;padding:14px;cursor:pointer;';
     backBtn.onclick = () => { overlay.remove(); toolbar.remove(); URL.revokeObjectURL(blobUrl); };
 
-    const shareBtn = document.createElement('button');
-    shareBtn.textContent = '⬆ Save / Share PDF';
-    shareBtn.style.cssText = 'flex:2;background:#f59e0b;color:#000;font-weight:900;font-size:15px;border:none;border-radius:10px;padding:14px;cursor:pointer;';
-    shareBtn.onclick = shareFile;
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = '⬆ Save / Share PDF';
+    saveBtn.style.cssText = 'flex:2;background:#f59e0b;color:#000;font-weight:900;font-size:15px;border:none;border-radius:10px;padding:14px;cursor:pointer;';
+
+    saveBtn.onclick = async () => {
+      saveBtn.textContent = 'Generating PDF…';
+      saveBtn.disabled = true;
+
+      try {
+        // Render the HTML in a hidden off-screen div, capture with html2canvas,
+        // then pack into a PDF with jsPDF and share via the native share sheet.
+        const { default: html2canvas } = await import('html2canvas');
+        const { jsPDF } = await import('jspdf');
+
+        // Render HTML into a hidden container at desktop width for quality
+        const container = document.createElement('div');
+        container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:white;padding:0;';
+        container.innerHTML = html;
+        container.querySelectorAll('.back-btn,.print-btn').forEach(el => el.remove());
+        document.body.appendChild(container);
+
+        const canvas = await html2canvas(container, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          width: 794,
+          windowWidth: 794,
+        });
+        document.body.removeChild(container);
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.92);
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const imgW = canvas.width;
+        const imgH = canvas.height;
+        const ratio = pageW / imgW;
+        let yOffset = 0;
+
+        // Split across pages if content is taller than one page
+        while (yOffset < imgH) {
+          if (yOffset > 0) pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', 0, -yOffset * ratio, imgW * ratio, imgH * ratio);
+          yOffset += pageH / ratio;
+        }
+
+        const pdfBlob = pdf.output('blob');
+        const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+          await navigator.share({ title: `Estimate — ${job.customerName || 'Customer'}`, files: [pdfFile] });
+        } else {
+          // Fallback: download
+          const url = URL.createObjectURL(pdfBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+        }
+      } catch (err) {
+        console.error('PDF generation error:', err);
+        alert('Could not generate PDF: ' + err.message);
+      }
+
+      saveBtn.textContent = '⬆ Save / Share PDF';
+      saveBtn.disabled = false;
+    };
 
     toolbar.appendChild(backBtn);
-    toolbar.appendChild(shareBtn);
+    toolbar.appendChild(saveBtn);
     document.body.appendChild(toolbar);
   } else {
     // Desktop / Android: open new tab and trigger print dialog
