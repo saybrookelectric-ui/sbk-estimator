@@ -145,16 +145,33 @@ async function buildInvoicePDF(job, settings, invoice, mode, totals) {
   billBox(ML + colW + 12,  colW, 'JOB DETAILS',  [scopeTitle, `Job #: ${(job.id||'').slice(-6).toUpperCase()}`, job.jobAddress, job.yearBuilt ? `Built: ${job.yearBuilt}` : ''].filter(Boolean));
   y += 66;
 
-  // ── PAID STAMP ────────────────────────────────────────────────────────────
+  // ── PAID STAMP — diagonal rubber-stamp watermark ────────────────────────
   if (invoice.paid) {
-    checkPage(40);
-    const stampX = ML + CW / 2;
-    const stampY = y + 18;
-    setFill(GREEN);
-    doc.roundedRect(stampX - 60, stampY - 16, 120, 26, 4, 4, 'F');
-    setFont(16, 'bold', [255,255,255]);
-    doc.text('✓ PAID IN FULL', stampX, stampY, { align: 'center' });
-    y += 40;
+    checkPage(10);
+    const stampCX = ML + CW / 2;
+    const stampCY = y + 14;
+
+    // Rotated border rectangle — 4 lines at 45 degrees
+    const hw = 58; const hh = 30; const ang = Math.PI / 4;
+    const cos45 = Math.cos(ang); const sin45 = Math.sin(ang);
+    const rotPt = (dx, dy) => [stampCX + dx*cos45 - dy*sin45, stampCY + dx*sin45 + dy*cos45];
+    const corners = [rotPt(-hw,-hh), rotPt(hw,-hh), rotPt(hw,hh), rotPt(-hw,hh)];
+    doc.setDrawColor(GREEN[0], GREEN[1], GREEN[2]);
+    doc.setLineWidth(2.5);
+    for (let i = 0; i < 4; i++) {
+      const [x1,y1] = corners[i]; const [x2,y2] = corners[(i+1)%4];
+      doc.line(x1, y1, x2, y2);
+    }
+
+    // Rotated text: "PAID" large + "IN FULL" smaller
+    doc.setTextColor(GREEN[0], GREEN[1], GREEN[2]);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(44);
+    doc.text('PAID', stampCX, stampCY, { align: 'center', angle: 45 });
+    doc.setFontSize(15);
+    doc.text('IN FULL', stampCX + 2, stampCY + 4, { align: 'center', angle: 45 });
+
+    y += 14;
   }
 
   // ── SERVICES TABLE ────────────────────────────────────────────────────────
@@ -244,7 +261,8 @@ async function buildInvoicePDF(job, settings, invoice, mode, totals) {
   if (invoice.paid && invoice.paidAt) {
     checkPage(16);
     setFont(9, 'bold', GREEN);
-    doc.text(`✓ Paid on ${new Date(invoice.paidAt).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })}`, PW-MR, y+10, { align:'right' });
+    const paidStr = `Paid on ${new Date(invoice.paidAt).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })}`;
+    doc.text(paidStr, ML, y+10);
     y += 18;
   }
 
