@@ -162,8 +162,8 @@ async function buildInvoicePDF(job, settings, invoice, mode, totals) {
     doc.setFontSize(11);
     doc.text('IN FULL', stampCX + 6, stampCY + 6, { align: 'center', angle: 45 });
 
-    // Border rectangle rotated 45° around stamp center
-    const hw = 38; const hh = 20; const ang = Math.PI / 4;
+    // Border rectangle rotated 45° CCW to match jsPDF text angle direction
+    const hw = 38; const hh = 20; const ang = -Math.PI / 4;
     const cos45 = Math.cos(ang); const sin45 = Math.sin(ang);
     const rotPt = (dx, dy) => [stampCX + dx*cos45 - dy*sin45, stampCY + dx*sin45 + dy*cos45];
     const corners = [rotPt(-hw,-hh), rotPt(hw,-hh), rotPt(hw,hh), rotPt(-hw,hh)];
