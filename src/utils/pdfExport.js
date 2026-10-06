@@ -238,15 +238,81 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
   const isStandalone = window.navigator.standalone === true ||
     window.matchMedia('(display-mode: standalone)').matches;
 
+  const customerName = (job.customerName || 'Customer').replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '-');
+  const fileName = `Estimate-${customerName}.pdf`;
+
+  // Shared PDF generation: renders the estimate HTML off-screen via html2canvas,
+  // paginates into jsPDF, then either shares (iOS) or downloads (desktop).
+  async function generateAndSave(statusBtn) {
+    const { default: html2canvas } = await import('html2canvas');
+    const { jsPDF } = await import('jspdf');
+
+    const cleanHtml = html
+      .replace(/<button[^>]*class="back-btn"[^>]*>[\s\S]*?<\/button>/g, '')
+      .replace(/<button[^>]*class="print-btn"[^>]*>[\s\S]*?<\/button>/g, '');
+
+    const container = document.createElement('div');
+    container.style.cssText = [
+      'position:absolute',
+      'left:-9999px',
+      'top:0',
+      'width:794px',
+      'background:white',
+      'z-index:-1',
+      'pointer-events:none',
+    ].join(';');
+    container.innerHTML = cleanHtml;
+    document.body.appendChild(container);
+
+    await new Promise(r => requestAnimationFrame(r));
+    const fullHeight = container.scrollHeight;
+    container.style.height = fullHeight + 'px';
+    await new Promise(r => requestAnimationFrame(r));
+
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      width: 794,
+      height: fullHeight,
+      windowWidth: 794,
+      windowHeight: fullHeight,
+      scrollX: 0,
+      scrollY: 0,
+    });
+
+    document.body.removeChild(container);
+
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgW = canvas.width;
+    const imgH = canvas.height;
+    const ratio = pageW / imgW;
+    let yOffset = 0;
+
+    while (yOffset < imgH) {
+      if (yOffset > 0) pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, -yOffset * ratio, imgW * ratio, imgH * ratio);
+      yOffset += pageH / ratio;
+    }
+
+    const pdfBlob = pdf.output('blob');
+    const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+      await navigator.share({ files: [pdfFile] });
+    } else {
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+  }
+
   if (isIOS || isStandalone) {
-    // iOS 27 PWA: window.print() is fully blocked. Generate a real PDF using
-    // html2canvas + jsPDF, then share via Web Share API (Save to Files, AirDrop, Mail).
-
-    const customerName = (job.customerName || 'Customer').replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '-');
-    const fileName = `Estimate-${customerName}.pdf`;
-
-    // iOS 27: skip iframe preview entirely (blob URL iframes cause stray files in share sheet)
-    // Show a simple save screen with customer name and Save button
+    // iOS: show overlay with Save button (window.print() fully blocked in iOS 27 PWA)
     let overlay = document.getElementById('sbk-pdf-overlay');
     if (overlay) overlay.remove();
     overlay = document.createElement('div');
@@ -273,83 +339,12 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
     saveBtn.onclick = async () => {
       saveBtn.textContent = 'Generating PDF…';
       saveBtn.disabled = true;
-
       try {
-        const { default: html2canvas } = await import('html2canvas');
-        const { jsPDF } = await import('jspdf');
-
-        // Build a clean copy of the HTML with floating buttons removed
-        const cleanHtml = html
-          .replace(/<button[^>]*class="back-btn"[^>]*>[\s\S]*?<\/button>/g, '')
-          .replace(/<button[^>]*class="print-btn"[^>]*>[\s\S]*?<\/button>/g, '');
-
-        // Render into an off-screen div positioned far left so it never
-        // intersects the viewport — avoids any overlay/toolbar bleed.
-        const container = document.createElement('div');
-        container.style.cssText = [
-          'position:absolute',
-          'left:-9999px',
-          'top:0',
-          'width:794px',
-          'background:white',
-          'z-index:-1',
-          'pointer-events:none',
-        ].join(';');
-        container.innerHTML = cleanHtml;
-        document.body.appendChild(container);
-
-        // Measure full content height AFTER layout, then set explicit height
-        // so html2canvas captures everything (not just viewport height).
-        await new Promise(r => requestAnimationFrame(r));
-        const fullHeight = container.scrollHeight;
-        container.style.height = fullHeight + 'px';
-        await new Promise(r => requestAnimationFrame(r));
-
-        const canvas = await html2canvas(container, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-          width: 794,
-          height: fullHeight,
-          windowWidth: 794,
-          windowHeight: fullHeight,
-          scrollX: 0,
-          scrollY: 0,
-        });
-
-        document.body.removeChild(container);
-
-        const imgData = canvas.toDataURL('image/jpeg', 0.92);
-        const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
-        const pageW = pdf.internal.pageSize.getWidth();
-        const pageH = pdf.internal.pageSize.getHeight();
-        const imgW = canvas.width;
-        const imgH = canvas.height;
-        const ratio = pageW / imgW;
-        let yOffset = 0;
-
-        while (yOffset < imgH) {
-          if (yOffset > 0) pdf.addPage();
-          pdf.addImage(imgData, 'JPEG', 0, -yOffset * ratio, imgW * ratio, imgH * ratio);
-          yOffset += pageH / ratio;
-        }
-
-        const pdfBlob = pdf.output('blob');
-        const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
-
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-          await navigator.share({ files: [pdfFile] });
-        } else {
-          const url = URL.createObjectURL(pdfBlob);
-          const a = document.createElement('a');
-          a.href = url; a.download = fileName; a.click();
-          setTimeout(() => URL.revokeObjectURL(url), 5000);
-        }
+        await generateAndSave(saveBtn);
       } catch (err) {
         console.error('PDF generation error:', err);
         alert('Could not generate PDF: ' + err.message);
       }
-
       saveBtn.textContent = '⬆ Save / Share PDF';
       saveBtn.disabled = false;
     };
@@ -357,13 +352,28 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
     toolbar.appendChild(backBtn);
     toolbar.appendChild(saveBtn);
     document.body.appendChild(toolbar);
+
   } else {
-    // Desktop / Android: open new tab and trigger print dialog
-    const win = window.open('', '_blank');
-    if (win) {
-      win.document.write(html);
-      win.document.close();
-      setTimeout(() => win.print(), 500);
-    }
+    // Desktop / Android: same html2canvas approach — clean PDF download, no print dialog.
+    // Show a brief overlay so the user gets visual feedback while generating.
+    let overlay = document.getElementById('sbk-pdf-overlay');
+    if (overlay) overlay.remove();
+    overlay = document.createElement('div');
+    overlay.id = 'sbk-pdf-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.75);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;';
+    overlay.innerHTML = `
+      <div style="color:#f59e0b;font-size:40px;">📄</div>
+      <p style="color:#fff;font-size:17px;font-weight:700;">Generating PDF…</p>`;
+    document.body.appendChild(overlay);
+
+    (async () => {
+      try {
+        await generateAndSave();
+      } catch (err) {
+        console.error('PDF generation error:', err);
+        alert('Could not generate PDF: ' + err.message);
+      }
+      overlay.remove();
+    })();
   }
 }
