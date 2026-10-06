@@ -77,12 +77,11 @@ async function buildPDF(job, settings, mode, totals) {
   const finalTotal  = totals.grandTotal - discountAmt;
 
   // ── LOGO ─────────────────────────────────────────────────────────────────
+  let logoRenderedH = 0;
   if (settings.logoBase64) {
     try {
-      const maxW = 110; const maxH = 50;
-      // detect format from data URI
+      const maxW = 140; const maxH = 60;
       const fmt = settings.logoBase64.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-      // Create an Image to get natural dimensions
       await new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
@@ -90,6 +89,7 @@ async function buildPDF(job, settings, mode, totals) {
           const w = img.width * ratio;
           const h = img.height * ratio;
           doc.addImage(settings.logoBase64, fmt, ML, y, w, h);
+          logoRenderedH = h;
           resolve();
         };
         img.onerror = resolve;
@@ -109,9 +109,9 @@ async function buildPDF(job, settings, mode, totals) {
   setFont(9, 'bold', BLACK);
   doc.text(scopeTitle, headerRight, y + 62, { align: 'right' });
 
-  // ── Company block (left) ─────────────────────────────────────────────────
-  const logoBottom = settings.logoBase64 ? y + 54 : y;
-  let cx = logoBottom + 4;
+  // ── Company block (left) — starts BELOW the logo ──────────────────────────
+  const logoBottom = y + logoRenderedH + (logoRenderedH > 0 ? 6 : 0);
+  let cx = logoBottom + 14;
   setFont(14, 'bold', BLACK);
   doc.text(companyName, ML, cx);  cx += 14;
   setFont(9, 'normal', GREY);
