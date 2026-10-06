@@ -125,7 +125,8 @@ function buildHTML(job, settings, mode, totals) {
   .notes-box { background:#fffbeb; border:1px solid #fde68a; border-radius:4px; padding:10px 14px; font-size:11px; color:#78350f; margin-top:16px; }
   .back-btn { display:none; }
   @media print {
-    body { padding:20px; }
+    @page { size: auto; margin: 12mm; }
+    body { padding:0; margin:0; }
     .back-btn, .print-btn { display:none !important; }
   }
   @media screen {
