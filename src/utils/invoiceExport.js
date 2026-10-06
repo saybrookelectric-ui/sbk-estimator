@@ -148,28 +148,31 @@ async function buildInvoicePDF(job, settings, invoice, mode, totals) {
   // ── PAID STAMP — diagonal rubber-stamp watermark ────────────────────────
   if (invoice.paid) {
     checkPage(10);
+    // Center the stamp horizontally and place it floating in the gap row
     const stampCX = ML + CW / 2;
-    const stampCY = y + 14;
+    const stampCY = y + 18;
 
-    // Rotated border rectangle — 4 lines at 45 degrees
-    const hw = 58; const hh = 30; const ang = Math.PI / 4;
+    // Two lines of text rotated 45°, stacked (offset along the rotation axis)
+    // "PAID" on top line, "IN FULL" on bottom line — shift along 45° axis
+    // Along 45° axis: offset by ~10pt means dx=dy=7 in page coords
+    doc.setTextColor(GREEN[0], GREEN[1], GREEN[2]);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.text('PAID', stampCX - 7, stampCY - 7, { align: 'center', angle: 45 });
+    doc.setFontSize(11);
+    doc.text('IN FULL', stampCX + 6, stampCY + 6, { align: 'center', angle: 45 });
+
+    // Border rectangle rotated 45° around stamp center
+    const hw = 38; const hh = 20; const ang = Math.PI / 4;
     const cos45 = Math.cos(ang); const sin45 = Math.sin(ang);
     const rotPt = (dx, dy) => [stampCX + dx*cos45 - dy*sin45, stampCY + dx*sin45 + dy*cos45];
     const corners = [rotPt(-hw,-hh), rotPt(hw,-hh), rotPt(hw,hh), rotPt(-hw,hh)];
     doc.setDrawColor(GREEN[0], GREEN[1], GREEN[2]);
-    doc.setLineWidth(2.5);
+    doc.setLineWidth(1.5);
     for (let i = 0; i < 4; i++) {
       const [x1,y1] = corners[i]; const [x2,y2] = corners[(i+1)%4];
       doc.line(x1, y1, x2, y2);
     }
-
-    // Rotated text: "PAID" large + "IN FULL" smaller
-    doc.setTextColor(GREEN[0], GREEN[1], GREEN[2]);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(44);
-    doc.text('PAID', stampCX, stampCY, { align: 'center', angle: 45 });
-    doc.setFontSize(15);
-    doc.text('IN FULL', stampCX + 2, stampCY + 4, { align: 'center', angle: 45 });
 
     y += 14;
   }
