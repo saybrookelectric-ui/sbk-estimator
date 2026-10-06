@@ -1,13 +1,12 @@
 import { calcJobTotals, formatCurrency, formatHours } from './pricing';
 import { JOB_TYPES } from '../data/jobTypes';
+import { jsPDF } from 'jspdf';
 
 // ---------------------------------------------------------------------------
 // buildPDF — constructs a real jsPDF document from job data.
 // No html2canvas. No screenshots. Pure vector layout → crisp on every device.
 // ---------------------------------------------------------------------------
 async function buildPDF(job, settings, mode, totals) {
-  const { jsPDF } = await import('jspdf');
-
   // ── Page setup ──────────────────────────────────────────────────────────
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' });
   const PW = doc.internal.pageSize.getWidth();   // 612 pt
