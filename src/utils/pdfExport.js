@@ -329,7 +329,7 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
         const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-          await navigator.share({ title: `Estimate — ${job.customerName || 'Customer'}`, files: [pdfFile] });
+          await navigator.share({ files: [pdfFile] });
         } else {
           const url = URL.createObjectURL(pdfBlob);
           const a = document.createElement('a');
