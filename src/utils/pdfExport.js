@@ -126,7 +126,7 @@ function buildHTML(job, settings, mode, totals) {
   .back-btn { display:none; }
   @media print {
     body { padding:20px; }
-    .back-btn { display:none !important; }
+    .back-btn, .print-btn { display:none !important; }
   }
   @media screen {
     .back-btn {
