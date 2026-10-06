@@ -244,20 +244,17 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
     const customerName = (job.customerName || 'Customer').replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '-');
     const fileName = `Estimate-${customerName}.pdf`;
 
-    // Show preview overlay with a toolbar
-    const blob = new Blob([html], { type: 'text/html' });
-    const blobUrl = URL.createObjectURL(blob);
-
+    // iOS 27: skip iframe preview entirely (blob URL iframes cause stray files in share sheet)
+    // Show a simple save screen with customer name and Save button
     let overlay = document.getElementById('sbk-pdf-overlay');
     if (overlay) overlay.remove();
     overlay = document.createElement('div');
     overlay.id = 'sbk-pdf-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:white;';
-
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'width:100%;height:100%;border:none;';
-    iframe.src = blobUrl;
-    overlay.appendChild(iframe);
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:32px;';
+    overlay.innerHTML = `
+      <div style="color:#f59e0b;font-size:48px;">📄</div>
+      <p style="color:#fff;font-size:18px;font-weight:900;text-align:center;">Estimate Ready</p>
+      <p style="color:#888;font-size:14px;text-align:center;">${job.customerName || 'Customer'}</p>`;
     document.body.appendChild(overlay);
 
     const toolbar = document.createElement('div');
@@ -266,7 +263,7 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
     const backBtn = document.createElement('button');
     backBtn.textContent = '← Back';
     backBtn.style.cssText = 'flex:1;background:#333;color:#fff;font-weight:700;font-size:15px;border:none;border-radius:10px;padding:14px;cursor:pointer;';
-    backBtn.onclick = () => { overlay.remove(); toolbar.remove(); URL.revokeObjectURL(blobUrl); };
+    backBtn.onclick = () => { overlay.remove(); toolbar.remove(); };
 
     const saveBtn = document.createElement('button');
     saveBtn.textContent = '⬆ Save / Share PDF';
@@ -277,17 +274,20 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
       saveBtn.disabled = true;
 
       try {
-        // Render the HTML in a hidden off-screen div, capture with html2canvas,
-        // then pack into a PDF with jsPDF and share via the native share sheet.
         const { default: html2canvas } = await import('html2canvas');
         const { jsPDF } = await import('jspdf');
 
-        // Render HTML into a hidden container at desktop width for quality
+        // Render into a hidden off-screen container — no overlay, no toolbar buttons
         const container = document.createElement('div');
-        container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:white;padding:0;';
+        container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:white;';
         container.innerHTML = html;
+        // Strip the in-HTML back/print buttons (they're inside the estimate HTML)
         container.querySelectorAll('.back-btn,.print-btn').forEach(el => el.remove());
         document.body.appendChild(container);
+
+        // Hide our overlay toolbar so it can't appear in any screenshot
+        toolbar.style.visibility = 'hidden';
+        overlay.style.visibility = 'hidden';
 
         const canvas = await html2canvas(container, {
           scale: 2,
@@ -295,7 +295,11 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
           backgroundColor: '#ffffff',
           width: 794,
           windowWidth: 794,
+          ignoreElements: el => el === toolbar || el === overlay,
         });
+
+        toolbar.style.visibility = '';
+        overlay.style.visibility = '';
         document.body.removeChild(container);
 
         const imgData = canvas.toDataURL('image/jpeg', 0.92);
@@ -307,7 +311,6 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
         const ratio = pageW / imgW;
         let yOffset = 0;
 
-        // Split across pages if content is taller than one page
         while (yOffset < imgH) {
           if (yOffset > 0) pdf.addPage();
           pdf.addImage(imgData, 'JPEG', 0, -yOffset * ratio, imgW * ratio, imgH * ratio);
@@ -320,12 +323,9 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
           await navigator.share({ title: `Estimate — ${job.customerName || 'Customer'}`, files: [pdfFile] });
         } else {
-          // Fallback: download
           const url = URL.createObjectURL(pdfBlob);
           const a = document.createElement('a');
-          a.href = url;
-          a.download = fileName;
-          a.click();
+          a.href = url; a.download = fileName; a.click();
           setTimeout(() => URL.revokeObjectURL(url), 5000);
         }
       } catch (err) {
