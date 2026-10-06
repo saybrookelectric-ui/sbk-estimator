@@ -277,38 +277,46 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
         const { default: html2canvas } = await import('html2canvas');
         const { jsPDF } = await import('jspdf');
 
-        // Render inside a hidden same-origin iframe so html2canvas sees ONLY
-        // the estimate HTML — completely isolated from the app and its overlays.
-        const renderFrame = document.createElement('iframe');
-        renderFrame.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:794px;height:1px;border:none;visibility:hidden;';
-        document.body.appendChild(renderFrame);
+        // Build a clean copy of the HTML with floating buttons removed
+        const cleanHtml = html
+          .replace(/<button[^>]*class="back-btn"[^>]*>[\s\S]*?<\/button>/g, '')
+          .replace(/<button[^>]*class="print-btn"[^>]*>[\s\S]*?<\/button>/g, '');
 
-        await new Promise(resolve => {
-          renderFrame.onload = resolve;
-          // Strip the floating back/print buttons before rendering
-          const cleanHtml = html.replace(/<button class="back-btn"[\s\S]*?<\/button>/, '')
-                                .replace(/<button class="print-btn"[\s\S]*?<\/button>/, '');
-          renderFrame.srcdoc = cleanHtml;
-        });
+        // Render into an off-screen div positioned far left so it never
+        // intersects the viewport — avoids any overlay/toolbar bleed.
+        const container = document.createElement('div');
+        container.style.cssText = [
+          'position:absolute',
+          'left:-9999px',
+          'top:0',
+          'width:794px',
+          'background:white',
+          'z-index:-1',
+          'pointer-events:none',
+        ].join(';');
+        container.innerHTML = cleanHtml;
+        document.body.appendChild(container);
 
-        // Size iframe to full content height so nothing is cropped
-        const frameDoc = renderFrame.contentDocument;
-        const fullHeight = frameDoc.documentElement.scrollHeight;
-        renderFrame.style.height = fullHeight + 'px';
-        // Allow one frame for layout to settle
+        // Measure full content height AFTER layout, then set explicit height
+        // so html2canvas captures everything (not just viewport height).
+        await new Promise(r => requestAnimationFrame(r));
+        const fullHeight = container.scrollHeight;
+        container.style.height = fullHeight + 'px';
         await new Promise(r => requestAnimationFrame(r));
 
-        const canvas = await html2canvas(frameDoc.body, {
+        const canvas = await html2canvas(container, {
           scale: 2,
           useCORS: true,
           backgroundColor: '#ffffff',
           width: 794,
+          height: fullHeight,
           windowWidth: 794,
+          windowHeight: fullHeight,
           scrollX: 0,
           scrollY: 0,
         });
 
-        document.body.removeChild(renderFrame);
+        document.body.removeChild(container);
 
         const imgData = canvas.toDataURL('image/jpeg', 0.92);
         const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
