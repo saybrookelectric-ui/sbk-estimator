@@ -277,30 +277,38 @@ export function generateQuotePDF(job, settings, mode = 'summary') {
         const { default: html2canvas } = await import('html2canvas');
         const { jsPDF } = await import('jspdf');
 
-        // Render into a hidden off-screen container — no overlay, no toolbar buttons
-        const container = document.createElement('div');
-        container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:white;';
-        container.innerHTML = html;
-        // Strip the in-HTML back/print buttons (they're inside the estimate HTML)
-        container.querySelectorAll('.back-btn,.print-btn').forEach(el => el.remove());
-        document.body.appendChild(container);
+        // Render inside a hidden same-origin iframe so html2canvas sees ONLY
+        // the estimate HTML — completely isolated from the app and its overlays.
+        const renderFrame = document.createElement('iframe');
+        renderFrame.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:794px;height:1px;border:none;visibility:hidden;';
+        document.body.appendChild(renderFrame);
 
-        // Hide our overlay toolbar so it can't appear in any screenshot
-        toolbar.style.visibility = 'hidden';
-        overlay.style.visibility = 'hidden';
+        await new Promise(resolve => {
+          renderFrame.onload = resolve;
+          // Strip the floating back/print buttons before rendering
+          const cleanHtml = html.replace(/<button class="back-btn"[\s\S]*?<\/button>/, '')
+                                .replace(/<button class="print-btn"[\s\S]*?<\/button>/, '');
+          renderFrame.srcdoc = cleanHtml;
+        });
 
-        const canvas = await html2canvas(container, {
+        // Size iframe to full content height so nothing is cropped
+        const frameDoc = renderFrame.contentDocument;
+        const fullHeight = frameDoc.documentElement.scrollHeight;
+        renderFrame.style.height = fullHeight + 'px';
+        // Allow one frame for layout to settle
+        await new Promise(r => requestAnimationFrame(r));
+
+        const canvas = await html2canvas(frameDoc.body, {
           scale: 2,
           useCORS: true,
           backgroundColor: '#ffffff',
           width: 794,
           windowWidth: 794,
-          ignoreElements: el => el === toolbar || el === overlay,
+          scrollX: 0,
+          scrollY: 0,
         });
 
-        toolbar.style.visibility = '';
-        overlay.style.visibility = '';
-        document.body.removeChild(container);
+        document.body.removeChild(renderFrame);
 
         const imgData = canvas.toDataURL('image/jpeg', 0.92);
         const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
