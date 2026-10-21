@@ -157,6 +157,7 @@ export default function App() {
           settings={store.settings}
           onSave={store.setSettings}
           onBack={() => setView('dashboard')}
+          syncStatus={store.syncStatus}
         />
       )}
       {view === 'calendar' && (

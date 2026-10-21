@@ -2,9 +2,19 @@ import { useState, useRef, useEffect } from 'react';
 import { Input, Textarea, SectionLabel, YellowBtn, GhostBtn } from './UI';
 import { startQBAuth, isQBConnected, hasRefreshToken, clearQBTokens, getQBTokens } from '../utils/quickbooks';
 
-export default function SettingsPage({ settings, onSave, onBack }) {
+export default function SettingsPage({ settings, onSave, onBack, syncStatus = 'idle' }) {
   const [local, setLocal] = useState(settings);
   const [saved, setSaved] = useState(false);
+  const [synced, setSynced] = useState(syncStatus === 'synced');
+
+  // When Supabase finishes loading for the first time, adopt the cloud settings.
+  // Guard with the synced flag so we don't clobber changes the user is actively making.
+  useEffect(() => {
+    if (syncStatus === 'synced' && !synced) {
+      setLocal(settings);
+      setSynced(true);
+    }
+  }, [syncStatus, settings, synced]);
   const [qbConnected, setQbConnected] = useState(isQBConnected() || hasRefreshToken());
   const [qbConnecting, setQbConnecting] = useState(false);
   const [qbError, setQbError] = useState('');
