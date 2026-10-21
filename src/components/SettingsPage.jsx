@@ -137,8 +137,8 @@ export default function SettingsPage({ settings, onSave, onBack }) {
           <div className="space-y-5">
             <SectionLabel>Pricing Defaults</SectionLabel>
             <div className="grid grid-cols-2 gap-4">
-              <Input label="Labor Rate ($/hr)" type="number" value={local.laborRate} onChange={v => upd('laborRate', parseFloat(v) || 95)} hint="Fully loaded shop rate" />
-              <Input label="Default Markup (%)" type="number" value={local.defaultMarkup} onChange={v => upd('defaultMarkup', parseFloat(v) || 20)} hint="Applied to material + labor" />
+              <Input label="Labor Rate ($/hr)" type="number" value={local.laborRate} onChange={v => upd('laborRate', v === '' ? '' : parseFloat(v))} hint="Fully loaded shop rate" />
+              <Input label="Default Markup (%)" type="number" value={local.defaultMarkup} onChange={v => upd('defaultMarkup', v === '' ? '' : parseFloat(v))} hint="Applied to material + labor" />
             </div>
             <div>
               <SectionLabel>Pricing Mode</SectionLabel>

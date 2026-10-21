@@ -236,7 +236,7 @@ export function useStore() {
     const next = { ...settings, ...updates };
     setSettingsState(next);
     lsSet('sbk_settings', next);
-    debouncedUpsertSettings(next);
+    upsertSettings(next);
   };
 
   // ── CUSTOM PRICES ─────────────────────────────────────────────────────────
