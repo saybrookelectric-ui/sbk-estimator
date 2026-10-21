@@ -154,10 +154,10 @@ export default function App() {
       )}
       {view === 'settings' && (
         <SettingsPage
+          key={store.syncStatus === 'synced' ? 'synced' : 'loading'}
           settings={store.settings}
           onSave={store.setSettings}
           onBack={() => setView('dashboard')}
-          syncStatus={store.syncStatus}
         />
       )}
       {view === 'calendar' && (

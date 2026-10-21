@@ -2,29 +2,18 @@ import { useState, useRef, useEffect } from 'react';
 import { Input, Textarea, SectionLabel, YellowBtn, GhostBtn } from './UI';
 import { startQBAuth, isQBConnected, hasRefreshToken, clearQBTokens, getQBTokens } from '../utils/quickbooks';
 
-export default function SettingsPage({ settings, onSave, onBack, syncStatus = 'idle' }) {
+export default function SettingsPage({ settings, onSave, onBack }) {
   const [local, setLocal] = useState(settings);
   const [saved, setSaved] = useState(false);
-
-  // Always adopt settings from the store — covers both the initial Supabase load
-  // and any external changes. We track a ref to know if the user has started
-  // editing so we don't clobber in-progress changes.
-  const dirty = useRef(false);
-  useEffect(() => {
-    if (!dirty.current) {
-      setLocal(settings);
-    }
-  }, [settings]);
   const [qbConnected, setQbConnected] = useState(isQBConnected() || hasRefreshToken());
   const [qbConnecting, setQbConnecting] = useState(false);
   const [qbError, setQbError] = useState('');
   const logoRef = useRef(null);
 
-  const upd = (k, v) => { dirty.current = true; setLocal(p => ({ ...p, [k]: v })); };
+  const upd = (k, v) => setLocal(p => ({ ...p, [k]: v }));
 
   const save = () => {
     onSave(local);
-    dirty.current = false;
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
