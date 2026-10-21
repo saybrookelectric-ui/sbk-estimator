@@ -1,6 +1,6 @@
 export function calcJobTotals(job, settings) {
-  const laborRate = settings?.laborRate || 95;
-  const markupPct = settings?.defaultMarkup || 20;
+  const laborRate = settings?.laborRate ?? 95;
+  const markupPct = settings?.defaultMarkup ?? 20;
   const multiplier = job.laborMultiplier || 1.0;
 
   // Multi-scope: if job has scopes array, sum across all scopes
